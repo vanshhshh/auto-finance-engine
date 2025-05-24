@@ -3,23 +3,52 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Download, Plus, Minus, Activity, Settings } from 'lucide-react';
+import { Wallet, Send, Download, Plus, Minus, Activity, Settings, LogOut } from 'lucide-react';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
 import ActivityLog from './ActivityLog';
 import RuleBuilder from './RuleBuilder';
-import { useWalletStore } from '@/store/walletStore';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWalletData } from '@/hooks/useWalletData';
 
 const WalletDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
   const [modalType, setModalType] = useState<'send' | 'receive' | 'mint' | 'burn' | null>(null);
-  const { walletAddress, isConnected } = useWalletStore();
+  const { user, signOut } = useAuth();
+  const { profile, balances } = useWalletData();
 
   const tabs = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'activity', label: 'Activity', icon: Activity },
     { id: 'rules', label: 'Rules', icon: Settings },
   ];
+
+  const getTokenBalance = (symbol: string) => {
+    const balance = balances.find(b => b.token_symbol === symbol);
+    return balance ? Number(balance.balance) : 0;
+  };
+
+  const getTokenSymbol = (token: string) => {
+    switch (token) {
+      case 'eINR': return '₹';
+      case 'eUSD': return '$';
+      case 'eAED': return 'د.إ';
+      default: return '';
+    }
+  };
+
+  const getTokenColor = (token: string): 'emerald' | 'blue' | 'amber' => {
+    switch (token) {
+      case 'eINR': return 'emerald';
+      case 'eUSD': return 'blue';
+      case 'eAED': return 'amber';
+      default: return 'blue';
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
@@ -31,14 +60,23 @@ const WalletDashboard = () => {
             <p className="text-blue-200">Programmable CBDC Wallet Platform</p>
           </div>
           <div className="flex items-center gap-4">
-            <Badge variant={isConnected ? "default" : "secondary"} className="px-3 py-1">
-              {isConnected ? "Connected" : "Disconnected"}
+            <Badge variant="default" className="px-3 py-1">
+              Connected
             </Badge>
-            {walletAddress && (
+            {profile?.wallet_address && (
               <div className="text-sm text-blue-200 font-mono">
-                {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
               </div>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSignOut}
+              className="border-slate-600 text-white hover:bg-slate-700"
+            >
+              <LogOut size={16} className="mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
         
@@ -69,9 +107,15 @@ const WalletDashboard = () => {
         <div className="space-y-6">
           {/* Token Balances */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <TokenBalance token="eINR" balance={25000} symbol="₹" color="emerald" />
-            <TokenBalance token="eUSD" balance={1200} symbol="$" color="blue" />
-            <TokenBalance token="eAED" balance={850} symbol="د.إ" color="amber" />
+            {['eINR', 'eUSD', 'eAED'].map((token) => (
+              <TokenBalance 
+                key={token}
+                token={token} 
+                balance={getTokenBalance(token)} 
+                symbol={getTokenSymbol(token)} 
+                color={getTokenColor(token)} 
+              />
+            ))}
           </div>
 
           {/* Action Buttons */}

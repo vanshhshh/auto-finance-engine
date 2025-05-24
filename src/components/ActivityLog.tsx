@@ -3,10 +3,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUpRight, ArrowDownLeft, Plus, Minus, ExternalLink } from 'lucide-react';
-import { useWalletStore } from '@/store/walletStore';
+import { useWalletData } from '@/hooks/useWalletData';
 
 const ActivityLog = () => {
-  const { transactions } = useWalletStore();
+  const { transactions } = useWalletData();
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -46,28 +46,28 @@ const ActivityLog = () => {
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-slate-600/50 rounded-full">
-                    {getIcon(tx.type)}
+                    {getIcon(tx.transaction_type)}
                   </div>
                   <div>
                     <div className="font-medium text-white">
-                      {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} {tx.token}
+                      {tx.transaction_type.charAt(0).toUpperCase() + tx.transaction_type.slice(1)} {tx.token_symbol}
                     </div>
                     <div className="text-sm text-slate-400">
-                      {tx.timestamp.toLocaleDateString()} at {tx.timestamp.toLocaleTimeString()}
+                      {new Date(tx.created_at).toLocaleDateString()} at {new Date(tx.created_at).toLocaleTimeString()}
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right">
                   <div className="font-medium text-white">
-                    {tx.type === 'send' || tx.type === 'burn' ? '-' : '+'}
-                    {tx.amount.toLocaleString()} {tx.token}
+                    {tx.transaction_type === 'send' || tx.transaction_type === 'burn' ? '-' : '+'}
+                    {Number(tx.amount).toLocaleString()} {tx.token_symbol}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge className={getStatusColor(tx.status)}>
                       {tx.status}
                     </Badge>
-                    {tx.txHash && (
+                    {tx.tx_hash && (
                       <button className="text-blue-400 hover:text-blue-300">
                         <ExternalLink size={14} />
                       </button>

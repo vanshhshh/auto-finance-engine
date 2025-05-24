@@ -54,17 +54,17 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({ token, balance, symbol, col
         
         <div className="space-y-2">
           <div className={`text-2xl font-bold ${styles.accent}`}>
-            {symbol}{balance.toLocaleString()}
+            {symbol}{Number(balance).toLocaleString()}
           </div>
           <div className="text-xs text-slate-400">
-            ≈ ${(balance * 0.012).toFixed(2)} USD
+            ≈ ${(Number(balance) * 0.012).toFixed(2)} USD
           </div>
         </div>
 
         <div className="mt-4 pt-4 border-t border-slate-700/50">
           <div className="flex justify-between text-xs text-slate-400">
             <span>Available</span>
-            <span className={styles.text}>{balance.toLocaleString()}</span>
+            <span className={styles.text}>{Number(balance).toLocaleString()}</span>
           </div>
         </div>
       </CardContent>

@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Play, Pause, Trash2, Settings } from 'lucide-react';
-import { useWalletStore } from '@/store/walletStore';
-import { useToast } from '@/hooks/use-toast';
+import { useWalletData } from '@/hooks/useWalletData';
 
 const RuleBuilder = () => {
   const [showForm, setShowForm] = useState(false);
@@ -19,41 +18,33 @@ const RuleBuilder = () => {
   const [actionAmount, setActionAmount] = useState('');
   const [targetAddress, setTargetAddress] = useState('');
   
-  const { rules, addRule, toggleRule, deleteRule } = useWalletStore();
-  const { toast } = useToast();
+  const { rules, createRule, toggleRule, deleteRule } = useWalletData();
 
-  const handleCreateRule = (e: React.FormEvent) => {
+  const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const newRule = {
-      id: Date.now().toString(),
-      name: ruleName,
-      conditionType,
-      conditionValue: parseFloat(conditionValue),
-      token: actionToken,
-      amount: parseFloat(actionAmount),
-      targetAddress,
-      status: 'active' as const,
-      createdAt: new Date(),
-      lastExecuted: null,
-      executionCount: 0
-    };
+    try {
+      await createRule.mutateAsync({
+        name: ruleName,
+        condition_type: conditionType as any,
+        condition_value: parseFloat(conditionValue),
+        token_symbol: actionToken,
+        amount: parseFloat(actionAmount),
+        target_address: targetAddress,
+        status: 'active',
+      });
 
-    addRule(newRule);
-    
-    toast({
-      title: 'Rule Created',
-      description: `Programmable rule "${ruleName}" has been created and activated.`,
-    });
-
-    // Reset form
-    setRuleName('');
-    setConditionType('');
-    setConditionValue('');
-    setActionToken('');
-    setActionAmount('');
-    setTargetAddress('');
-    setShowForm(false);
+      // Reset form
+      setRuleName('');
+      setConditionType('');
+      setConditionValue('');
+      setActionToken('');
+      setActionAmount('');
+      setTargetAddress('');
+      setShowForm(false);
+    } catch (error) {
+      console.error('Rule creation failed:', error);
+    }
   };
 
   return (
@@ -167,9 +158,10 @@ const RuleBuilder = () => {
                 </Button>
                 <Button
                   type="submit"
+                  disabled={createRule.isPending}
                   className="bg-green-600 hover:bg-green-700"
                 >
-                  Create Rule
+                  {createRule.isPending ? 'Creating...' : 'Create Rule'}
                 </Button>
               </div>
             </form>
@@ -193,11 +185,11 @@ const RuleBuilder = () => {
                     <div>
                       <div className="font-medium text-white">{rule.name}</div>
                       <div className="text-sm text-slate-400">
-                        When {rule.conditionType} {'>'} {rule.conditionValue} → Send {rule.amount} {rule.token}
+                        When {rule.condition_type} {'>'} {Number(rule.condition_value)} → Send {Number(rule.amount)} {rule.token_symbol}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">
-                        Executed {rule.executionCount} times
-                        {rule.lastExecuted && ` • Last: ${rule.lastExecuted.toLocaleString()}`}
+                        Executed {rule.execution_count} times
+                        {rule.last_executed && ` • Last: ${new Date(rule.last_executed).toLocaleString()}`}
                       </div>
                     </div>
                   </div>
@@ -209,7 +201,10 @@ const RuleBuilder = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => toggleRule(rule.id)}
+                      onClick={() => toggleRule.mutate({ 
+                        ruleId: rule.id, 
+                        status: rule.status === 'active' ? 'paused' : 'active'
+                      })}
                       className="text-slate-400 hover:text-white"
                     >
                       {rule.status === 'active' ? <Pause size={16} /> : <Play size={16} />}
@@ -217,7 +212,7 @@ const RuleBuilder = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => deleteRule(rule.id)}
+                      onClick={() => deleteRule.mutate(rule.id)}
                       className="text-red-400 hover:text-red-300"
                     >
                       <Trash2 size={16} />

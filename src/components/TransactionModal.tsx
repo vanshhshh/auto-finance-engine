@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useWalletStore } from '@/store/walletStore';
+import { useWalletData } from '@/hooks/useWalletData';
 
 interface TransactionModalProps {
   type: 'send' | 'receive' | 'mint' | 'burn';
@@ -18,39 +18,33 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
   const [amount, setAmount] = useState('');
   const [address, setAddress] = useState('');
   const [selectedToken, setSelectedToken] = useState('eINR');
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { addTransaction } = useWalletStore();
+  const { createTransaction, profile } = useWalletData();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    try {
+      await createTransaction.mutateAsync({
+        transaction_type: type,
+        token_symbol: selectedToken,
+        amount: parseFloat(amount),
+        from_address: type === 'send' ? profile?.wallet_address : undefined,
+        to_address: address || profile?.wallet_address || '0x742d35Cc6634C0532925a3b8D',
+        status: 'completed',
+      });
 
-    // Simulate transaction processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
+      toast({
+        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Successful`,
+        description: `${amount} ${selectedToken} has been ${type === 'send' ? 'sent' : type === 'receive' ? 'received' : type}ed`,
+      });
 
-    const transaction = {
-      id: Date.now().toString(),
-      type,
-      token: selectedToken,
-      amount: parseFloat(amount),
-      address: address || '0x742d35Cc6634C0532925a3b8D',
-      timestamp: new Date(),
-      status: 'completed' as const,
-      txHash: `0x${Math.random().toString(16).substring(2)}`
-    };
-
-    addTransaction(transaction);
-
-    toast({
-      title: `${type.charAt(0).toUpperCase() + type.slice(1)} Successful`,
-      description: `${amount} ${selectedToken} has been ${type === 'send' ? 'sent' : type === 'receive' ? 'received' : type}ed`,
-    });
-
-    setIsLoading(false);
-    onClose();
-    setAmount('');
-    setAddress('');
+      onClose();
+      setAmount('');
+      setAddress('');
+    } catch (error) {
+      console.error('Transaction failed:', error);
+    }
   };
 
   const getTitle = () => {
@@ -133,10 +127,10 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={createTransaction.isPending}
               className={`flex-1 ${getButtonColor()}`}
             >
-              {isLoading ? 'Processing...' : `${type.charAt(0).toUpperCase() + type.slice(1)}`}
+              {createTransaction.isPending ? 'Processing...' : `${type.charAt(0).toUpperCase() + type.slice(1)}`}
             </Button>
           </div>
         </form>
