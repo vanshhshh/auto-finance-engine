@@ -3,11 +3,14 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Download, Plus, Minus, Activity, Settings, LogOut } from 'lucide-react';
+import { Wallet, Send, Download, Plus, Minus, Activity, Settings, LogOut, BarChart3, Shield } from 'lucide-react';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
 import ActivityLog from './ActivityLog';
 import RuleBuilder from './RuleBuilder';
+import AnalyticsDashboard from './AnalyticsDashboard';
+import ComplianceMonitor from './ComplianceMonitor';
+import NotificationCenter from './NotificationCenter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletData } from '@/hooks/useWalletData';
 
@@ -21,6 +24,8 @@ const WalletDashboard = () => {
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'activity', label: 'Activity', icon: Activity },
     { id: 'rules', label: 'Rules', icon: Settings },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'compliance', label: 'Compliance', icon: Shield },
   ];
 
   const getTokenBalance = (symbol: string) => {
@@ -60,6 +65,7 @@ const WalletDashboard = () => {
             <p className="text-blue-200">Programmable CBDC Wallet Platform</p>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationCenter />
             <Badge variant="default" className="px-3 py-1">
               Connected
             </Badge>
@@ -162,6 +168,8 @@ const WalletDashboard = () => {
 
       {activeTab === 'activity' && <ActivityLog />}
       {activeTab === 'rules' && <RuleBuilder />}
+      {activeTab === 'analytics' && <AnalyticsDashboard />}
+      {activeTab === 'compliance' && <ComplianceMonitor />}
 
       {/* Transaction Modal */}
       {modalType && (
