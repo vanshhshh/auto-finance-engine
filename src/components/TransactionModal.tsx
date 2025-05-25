@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -47,20 +46,20 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
 
       if (error) throw error;
 
-      // Update balance
+      // Update balance with proper typing
       if (type === 'mint' || type === 'receive') {
         const { error: balanceError } = await supabase.rpc('update_balance', {
           p_user_id: user.id,
           p_token_symbol: tokenSymbol,
           p_amount: parseFloat(amount),
-        });
+        } as any);
         if (balanceError) console.error('Balance update error:', balanceError);
       } else if (type === 'send' || type === 'burn') {
         const { error: balanceError } = await supabase.rpc('update_balance', {
           p_user_id: user.id,
           p_token_symbol: tokenSymbol,
           p_amount: -parseFloat(amount),
-        });
+        } as any);
         if (balanceError) console.error('Balance update error:', balanceError);
       }
 

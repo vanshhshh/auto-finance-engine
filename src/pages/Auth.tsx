@@ -28,17 +28,46 @@ const Auth = () => {
         : await signUp(email, password);
 
       if (error) {
-        toast({
-          title: "Authentication Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        // Handle specific error cases
+        if (error.message.includes('email_not_confirmed')) {
+          toast({
+            title: "Email Confirmation Required",
+            description: "Please check your email and click the confirmation link before signing in. If you can't find the email, check your spam folder.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('Invalid login credentials')) {
+          toast({
+            title: "Invalid Credentials",
+            description: "The email or password you entered is incorrect. Please try again.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('User already registered')) {
+          toast({
+            title: "Account Already Exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "destructive",
+          });
+          setIsLogin(true);
+        } else {
+          toast({
+            title: "Authentication Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
       } else {
-        toast({
-          title: isLogin ? "Welcome back!" : "Account created!",
-          description: isLogin ? "Successfully signed in." : "Your account has been created successfully.",
-        });
-        navigate('/');
+        if (isLogin) {
+          toast({
+            title: "Welcome back!",
+            description: "Successfully signed in.",
+          });
+          navigate('/');
+        } else {
+          toast({
+            title: "Account Created!",
+            description: "Please check your email for a confirmation link to complete your registration.",
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -91,7 +120,13 @@ const Auth = () => {
                 placeholder="Enter your password"
                 className="bg-slate-700 border-slate-600 text-white"
                 required
+                minLength={6}
               />
+              {!isLogin && (
+                <p className="text-xs text-blue-300 mt-1">
+                  Password must be at least 6 characters long
+                </p>
+              )}
             </div>
 
             <Button
@@ -111,6 +146,15 @@ const Auth = () => {
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
             </div>
+
+            {!isLogin && (
+              <div className="text-xs text-blue-300 text-center mt-4 p-3 bg-blue-900/20 rounded">
+                <p className="font-medium mb-1">After creating your account:</p>
+                <p>1. Check your email for a confirmation link</p>
+                <p>2. Click the link to verify your email</p>
+                <p>3. Return here to sign in</p>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>
