@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useWalletData } from '@/hooks/useWalletData';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TransactionModalProps {
   type: 'send' | 'receive' | 'mint' | 'burn';
@@ -17,51 +19,80 @@ interface TransactionModalProps {
 const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClose }) => {
   const [amount, setAmount] = useState('');
   const [address, setAddress] = useState('');
-  const [selectedToken, setSelectedToken] = useState('eINR');
+  const [tokenSymbol, setTokenSymbol] = useState('eINR');
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
-  const { createTransaction, profile } = useWalletData();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (!user || !amount || (!address && type !== 'mint' && type !== 'burn')) return;
+
+    setLoading(true);
     try {
-      await createTransaction.mutateAsync({
+      const transactionData = {
+        user_id: user.id,
         transaction_type: type,
-        token_symbol: selectedToken,
+        token_symbol: tokenSymbol,
         amount: parseFloat(amount),
-        from_address: type === 'send' ? profile?.wallet_address : undefined,
-        to_address: address || profile?.wallet_address || '0x742d35Cc6634C0532925a3b8D',
+        to_address: address || (type === 'mint' || type === 'burn' ? 'system' : ''),
+        from_address: type === 'receive' ? address : user.email,
         status: 'completed',
-      });
+      };
+
+      const { error } = await supabase
+        .from('transactions')
+        .insert([transactionData]);
+
+      if (error) throw error;
+
+      // Update balance
+      if (type === 'mint' || type === 'receive') {
+        const { error: balanceError } = await supabase.rpc('update_balance', {
+          p_user_id: user.id,
+          p_token_symbol: tokenSymbol,
+          p_amount: parseFloat(amount),
+        });
+        if (balanceError) console.error('Balance update error:', balanceError);
+      } else if (type === 'send' || type === 'burn') {
+        const { error: balanceError } = await supabase.rpc('update_balance', {
+          p_user_id: user.id,
+          p_token_symbol: tokenSymbol,
+          p_amount: -parseFloat(amount),
+        });
+        if (balanceError) console.error('Balance update error:', balanceError);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['balances'] });
 
       toast({
-        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Successful`,
-        description: `${amount} ${selectedToken} has been ${type === 'send' ? 'sent' : type === 'receive' ? 'received' : type}ed`,
+        title: "Transaction Successful",
+        description: `${type.charAt(0).toUpperCase() + type.slice(1)} transaction completed successfully.`,
       });
 
       onClose();
       setAmount('');
       setAddress('');
-    } catch (error) {
-      console.error('Transaction failed:', error);
+    } catch (error: any) {
+      toast({
+        title: "Transaction Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getTitle = () => {
+  const getModalTitle = () => {
     switch (type) {
       case 'send': return 'Send Tokens';
       case 'receive': return 'Receive Tokens';
       case 'mint': return 'Mint Tokens';
       case 'burn': return 'Burn Tokens';
-    }
-  };
-
-  const getButtonColor = () => {
-    switch (type) {
-      case 'send': return 'bg-blue-600 hover:bg-blue-700';
-      case 'receive': return 'bg-green-600 hover:bg-green-700';
-      case 'mint': return 'bg-emerald-600 hover:bg-emerald-700';
-      case 'burn': return 'bg-red-600 hover:bg-red-700';
+      default: return 'Transaction';
     }
   };
 
@@ -69,20 +100,20 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-slate-800 border-slate-700 text-white">
         <DialogHeader>
-          <DialogTitle>{getTitle()}</DialogTitle>
+          <DialogTitle>{getModalTitle()}</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="token">Token</Label>
-            <Select value={selectedToken} onValueChange={setSelectedToken}>
+            <Select value={tokenSymbol} onValueChange={setTokenSymbol}>
               <SelectTrigger className="bg-slate-700 border-slate-600">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-slate-700 border-slate-600">
-                <SelectItem value="eINR">eINR (₹)</SelectItem>
-                <SelectItem value="eUSD">eUSD ($)</SelectItem>
-                <SelectItem value="eAED">eAED (د.إ)</SelectItem>
+                <SelectItem value="eINR">eINR</SelectItem>
+                <SelectItem value="eUSD">eUSD</SelectItem>
+                <SelectItem value="eAED">eAED</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -92,10 +123,11 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
             <Input
               id="amount"
               type="number"
+              step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="bg-slate-700 border-slate-600 text-white"
+              placeholder="Enter amount"
+              className="bg-slate-700 border-slate-600"
               required
             />
           </div>
@@ -103,34 +135,34 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
           {(type === 'send' || type === 'receive') && (
             <div>
               <Label htmlFor="address">
-                {type === 'send' ? 'Recipient Address' : 'Your Address'}
+                {type === 'send' ? 'Recipient Address' : 'Sender Address'}
               </Label>
               <Input
                 id="address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="0x..."
-                className="bg-slate-700 border-slate-600 text-white font-mono"
+                className="bg-slate-700 border-slate-600"
                 required
               />
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-2 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="flex-1 border-slate-600 text-white hover:bg-slate-700"
+              className="flex-1 border-slate-600"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={createTransaction.isPending}
-              className={`flex-1 ${getButtonColor()}`}
+              disabled={loading}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
-              {createTransaction.isPending ? 'Processing...' : `${type.charAt(0).toUpperCase() + type.slice(1)}`}
+              {loading ? 'Processing...' : 'Confirm'}
             </Button>
           </div>
         </form>
