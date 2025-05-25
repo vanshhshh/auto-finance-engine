@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -46,21 +47,45 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
 
       if (error) throw error;
 
-      // Update balance with proper typing
+      // Update balance by directly updating the token_balances table
       if (type === 'mint' || type === 'receive') {
-        const { error: balanceError } = await supabase.rpc('update_balance', {
-          p_user_id: user.id,
-          p_token_symbol: tokenSymbol,
-          p_amount: parseFloat(amount),
-        } as any);
-        if (balanceError) console.error('Balance update error:', balanceError);
+        // Get current balance
+        const { data: currentBalance } = await supabase
+          .from('token_balances')
+          .select('balance')
+          .eq('user_id', user.id)
+          .eq('token_symbol', tokenSymbol)
+          .single();
+
+        if (currentBalance) {
+          const newBalance = Number(currentBalance.balance) + parseFloat(amount);
+          const { error: balanceError } = await supabase
+            .from('token_balances')
+            .update({ balance: newBalance })
+            .eq('user_id', user.id)
+            .eq('token_symbol', tokenSymbol);
+          
+          if (balanceError) console.error('Balance update error:', balanceError);
+        }
       } else if (type === 'send' || type === 'burn') {
-        const { error: balanceError } = await supabase.rpc('update_balance', {
-          p_user_id: user.id,
-          p_token_symbol: tokenSymbol,
-          p_amount: -parseFloat(amount),
-        } as any);
-        if (balanceError) console.error('Balance update error:', balanceError);
+        // Get current balance
+        const { data: currentBalance } = await supabase
+          .from('token_balances')
+          .select('balance')
+          .eq('user_id', user.id)
+          .eq('token_symbol', tokenSymbol)
+          .single();
+
+        if (currentBalance) {
+          const newBalance = Number(currentBalance.balance) - parseFloat(amount);
+          const { error: balanceError } = await supabase
+            .from('token_balances')
+            .update({ balance: newBalance })
+            .eq('user_id', user.id)
+            .eq('token_symbol', tokenSymbol);
+          
+          if (balanceError) console.error('Balance update error:', balanceError);
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
