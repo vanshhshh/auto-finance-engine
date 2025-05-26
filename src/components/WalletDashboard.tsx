@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Download, Plus, Minus, Activity, Settings, LogOut, BarChart3, Shield } from 'lucide-react';
+import { Wallet, Send, Download, Plus, Minus, Activity, Settings, LogOut, BarChart3, Shield, Brain, Zap, Users } from 'lucide-react';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
 import ActivityLog from './ActivityLog';
@@ -11,6 +11,9 @@ import RuleBuilder from './RuleBuilder';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import ComplianceMonitor from './ComplianceMonitor';
 import NotificationCenter from './NotificationCenter';
+import SmartContractBridge from './SmartContractBridge';
+import AIAssistant from './AIAssistant';
+import AdminDashboard from './AdminDashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletData } from '@/hooks/useWalletData';
 
@@ -20,12 +23,18 @@ const WalletDashboard = () => {
   const { user, signOut } = useAuth();
   const { profile, balances } = useWalletData();
 
+  // Check if user is admin (for demo purposes, checking if email contains 'admin')
+  const isAdmin = user?.email?.includes('admin') || false;
+
   const tabs = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'activity', label: 'Activity', icon: Activity },
     { id: 'rules', label: 'Rules', icon: Settings },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'compliance', label: 'Compliance', icon: Shield },
+    { id: 'bridge', label: 'Smart Contracts', icon: Zap },
+    { id: 'ai', label: 'AI Assistant', icon: Brain },
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Users }] : []),
   ];
 
   const getTokenBalance = (symbol: string) => {
@@ -69,6 +78,11 @@ const WalletDashboard = () => {
             <Badge variant="default" className="px-3 py-1">
               Connected
             </Badge>
+            {isAdmin && (
+              <Badge className="bg-red-600 px-3 py-1">
+                Admin
+              </Badge>
+            )}
             {profile?.wallet_address && (
               <div className="text-sm text-blue-200 font-mono">
                 {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
@@ -87,14 +101,14 @@ const WalletDashboard = () => {
         </div>
         
         {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg backdrop-blur-sm">
+        <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg backdrop-blur-sm overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'bg-blue-600 text-white shadow-lg'
                     : 'text-blue-200 hover:text-white hover:bg-slate-700/50'
@@ -170,6 +184,9 @@ const WalletDashboard = () => {
       {activeTab === 'rules' && <RuleBuilder />}
       {activeTab === 'analytics' && <AnalyticsDashboard />}
       {activeTab === 'compliance' && <ComplianceMonitor />}
+      {activeTab === 'bridge' && <SmartContractBridge />}
+      {activeTab === 'ai' && <AIAssistant />}
+      {activeTab === 'admin' && isAdmin && <AdminDashboard />}
 
       {/* Transaction Modal */}
       {modalType && (
