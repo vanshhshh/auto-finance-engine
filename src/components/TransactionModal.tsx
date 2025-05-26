@@ -31,6 +31,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
 
     setLoading(true);
     try {
+      // Create transaction record
       const transactionData = {
         user_id: user.id,
         transaction_type: type,
@@ -41,15 +42,16 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
         status: 'completed',
       };
 
-      const { error } = await supabase
+      const { data: transaction, error: transactionError } = await supabase
         .from('transactions')
-        .insert([transactionData]);
+        .insert([transactionData])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (transactionError) throw transactionError;
 
-      // Update balance by directly updating the token_balances table
+      // Update balance
       if (type === 'mint' || type === 'receive') {
-        // Get current balance
         const { data: currentBalance } = await supabase
           .from('token_balances')
           .select('balance')
@@ -59,16 +61,13 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
 
         if (currentBalance) {
           const newBalance = Number(currentBalance.balance) + parseFloat(amount);
-          const { error: balanceError } = await supabase
+          await supabase
             .from('token_balances')
-            .update({ balance: newBalance })
+            .update({ balance: newBalance, updated_at: new Date().toISOString() })
             .eq('user_id', user.id)
             .eq('token_symbol', tokenSymbol);
-          
-          if (balanceError) console.error('Balance update error:', balanceError);
         }
       } else if (type === 'send' || type === 'burn') {
-        // Get current balance
         const { data: currentBalance } = await supabase
           .from('token_balances')
           .select('balance')
@@ -78,18 +77,58 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
 
         if (currentBalance) {
           const newBalance = Number(currentBalance.balance) - parseFloat(amount);
-          const { error: balanceError } = await supabase
+          if (newBalance < 0) {
+            throw new Error('Insufficient balance');
+          }
+          
+          await supabase
             .from('token_balances')
-            .update({ balance: newBalance })
+            .update({ balance: newBalance, updated_at: new Date().toISOString() })
             .eq('user_id', user.id)
             .eq('token_symbol', tokenSymbol);
-          
-          if (balanceError) console.error('Balance update error:', balanceError);
         }
       }
 
+      // Create notification
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        type: 'transaction',
+        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Transaction Completed`,
+        message: `Successfully ${type === 'send' ? 'sent' : type === 'receive' ? 'received' : type} ${amount} ${tokenSymbol}`,
+        severity: 'success'
+      });
+
+      // Create smart contract interaction record (simulated)
+      if (type === 'mint' || type === 'burn') {
+        await supabase.from('contract_interactions').insert({
+          user_id: user.id,
+          transaction_id: transaction.id,
+          contract_address: `0x${Math.random().toString(16).substring(2, 42)}`,
+          function_name: type === 'mint' ? 'mint' : 'burn',
+          network: 'polygon',
+          gas_used: Math.floor(Math.random() * 50000) + 21000,
+          gas_price: Math.floor(Math.random() * 20) + 10,
+          tx_hash: `0x${Math.random().toString(16).substring(2, 66)}`,
+          status: 'confirmed'
+        });
+      }
+
+      // Create audit log
+      await supabase.from('audit_logs').insert({
+        action: `transaction_${type}`,
+        user_id: user.id,
+        details: {
+          transaction_id: transaction.id,
+          amount: parseFloat(amount),
+          token_symbol: tokenSymbol,
+          to_address: address
+        }
+      });
+
+      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['balances'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
       toast({
         title: "Transaction Successful",
@@ -100,6 +139,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, isOpen, onClo
       setAmount('');
       setAddress('');
     } catch (error: any) {
+      // Create error notification
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        type: 'transaction',
+        title: 'Transaction Failed',
+        message: error.message,
+        severity: 'error'
+      });
+
       toast({
         title: "Transaction Failed",
         description: error.message,

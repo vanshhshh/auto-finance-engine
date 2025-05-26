@@ -13,7 +13,10 @@ export const useWalletData = () => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          organization:organizations(*)
+        `)
         .eq('user_id', user.id)
         .single();
       
@@ -48,7 +51,8 @@ export const useWalletData = () => {
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
       
       if (error) throw error;
       return data;
@@ -73,10 +77,62 @@ export const useWalletData = () => {
     enabled: !!user,
   });
 
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications', user?.id],
+    queryFn: async () => {
+      if (!user) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const { data: exchangeRates = [] } = useQuery({
+    queryKey: ['exchange-rates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('exchange_rates')
+        .select('*')
+        .order('timestamp', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 60000, // Refresh every minute
+  });
+
+  const { data: complianceEvents = [] } = useQuery({
+    queryKey: ['compliance-events', user?.id],
+    queryFn: async () => {
+      if (!user) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('compliance_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
   return {
     profile,
     balances,
     transactions,
     rules,
+    notifications,
+    exchangeRates,
+    complianceEvents,
   };
 };

@@ -1,63 +1,21 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bell, X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useWalletData } from '@/hooks/useWalletData';
+import { useRealTimeData } from '@/hooks/useRealTimeData';
 import { supabase } from '@/integrations/supabase/client';
-
-interface Notification {
-  id: string;
-  type: 'transaction' | 'rule' | 'compliance' | 'system';
-  title: string;
-  message: string;
-  severity: 'info' | 'warning' | 'error' | 'success';
-  read: boolean;
-  created_at: string;
-}
+import { useQueryClient } from '@tanstack/react-query';
 
 const NotificationCenter = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useAuth();
-
-  useEffect(() => {
-    if (!user) return;
-
-    // Simulate real-time notifications
-    const mockNotifications: Notification[] = [
-      {
-        id: '1',
-        type: 'transaction',
-        title: 'Transaction Completed',
-        message: 'Your transfer of 1,000 eINR has been processed successfully',
-        severity: 'success',
-        read: false,
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: '2',
-        type: 'rule',
-        title: 'Rule Executed',
-        message: 'Auto-payment rule triggered: 500 eUSD sent to merchant',
-        severity: 'info',
-        read: false,
-        created_at: new Date(Date.now() - 300000).toISOString(),
-      },
-      {
-        id: '3',
-        type: 'compliance',
-        title: 'Compliance Alert',
-        message: 'Daily transaction limit approaching (85% used)',
-        severity: 'warning',
-        read: true,
-        created_at: new Date(Date.now() - 600000).toISOString(),
-      },
-    ];
-
-    setNotifications(mockNotifications);
-  }, [user]);
+  const { notifications } = useWalletData();
+  const queryClient = useQueryClient();
+  
+  // Enable real-time updates
+  useRealTimeData();
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -70,14 +28,34 @@ const NotificationCenter = () => {
     }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
+  const markAsRead = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const deleteNotification = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+    }
   };
 
   return (

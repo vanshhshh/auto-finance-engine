@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Download, Plus, Minus, Activity, Settings, LogOut, BarChart3, Shield, Brain, Zap, Users } from 'lucide-react';
+import { Wallet, Send, Download, Plus, Minus, Activity, Settings, LogOut, BarChart3, Shield, Brain, Zap, Users, Building } from 'lucide-react';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
 import ActivityLog from './ActivityLog';
@@ -16,14 +16,18 @@ import AIAssistant from './AIAssistant';
 import AdminDashboard from './AdminDashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletData } from '@/hooks/useWalletData';
+import { useRealTimeData } from '@/hooks/useRealTimeData';
 
 const WalletDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
   const [modalType, setModalType] = useState<'send' | 'receive' | 'mint' | 'burn' | null>(null);
   const { user, signOut } = useAuth();
   const { profile, balances } = useWalletData();
+  
+  // Enable real-time updates
+  useRealTimeData();
 
-  // Check if user is admin (for demo purposes, checking if email contains 'admin')
+  // Check if user is admin
   const isAdmin = user?.email?.includes('admin') || false;
 
   const tabs = [
@@ -83,6 +87,12 @@ const WalletDashboard = () => {
                 Admin
               </Badge>
             )}
+            {profile?.organization && (
+              <Badge variant="outline" className="border-slate-600 text-slate-300 px-3 py-1">
+                <Building size={14} className="mr-1" />
+                {profile.organization.type}
+              </Badge>
+            )}
             {profile?.wallet_address && (
               <div className="text-sm text-blue-200 font-mono">
                 {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
@@ -125,6 +135,31 @@ const WalletDashboard = () => {
       {/* Tab Content */}
       {activeTab === 'wallet' && (
         <div className="space-y-6">
+          {/* Organization Info */}
+          {profile?.organization && (
+            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Building className="text-blue-400" size={20} />
+                    <div>
+                      <div className="text-white font-medium">{profile.organization.name}</div>
+                      <div className="text-slate-400 text-sm">
+                        {profile.organization.type} • KYC: {profile.organization.kyc_status}
+                      </div>
+                    </div>
+                  </div>
+                  <Badge className={`${
+                    profile.organization.compliance_score > 80 ? 'bg-green-600' : 
+                    profile.organization.compliance_score > 60 ? 'bg-yellow-600' : 'bg-red-600'
+                  } text-white`}>
+                    Compliance: {profile.organization.compliance_score || 0}%
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Token Balances */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {['eINR', 'eUSD', 'eAED'].map((token) => (
