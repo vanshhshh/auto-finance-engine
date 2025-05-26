@@ -27,10 +27,7 @@ export const useAdminData = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          organization:organizations(*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -39,16 +36,13 @@ export const useAdminData = () => {
     enabled: isAdmin,
   });
 
+  // Use audit_logs temporarily until compliance_events table is available in types
   const { data: complianceEvents = [] } = useQuery({
-    queryKey: ['all-compliance-events'],
+    queryKey: ['admin-audit-logs'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('compliance_events')
-        .select(`
-          *,
-          user:profiles!compliance_events_user_id_fkey(wallet_address),
-          organization:organizations(name)
-        `)
+        .from('audit_logs')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
       
