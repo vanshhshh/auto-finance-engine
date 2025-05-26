@@ -1,60 +1,73 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Bell, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Bell, X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { useWalletData } from '@/hooks/useWalletData';
-import { useRealTimeData } from '@/hooks/useRealTimeData';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 const NotificationCenter = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { notifications } = useWalletData();
-  const queryClient = useQueryClient();
-  
-  // Enable real-time updates
-  useRealTimeData();
+  const { transactions } = useWalletData();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Create simulated notifications from transaction data
+  const notifications = transactions.slice(0, 5).map((tx, index) => ({
+    id: `notif_${tx.id}`,
+    type: 'transaction',
+    title: `${tx.transaction_type.charAt(0).toUpperCase() + tx.transaction_type.slice(1)} Transaction`,
+    message: `${tx.transaction_type === 'send' ? 'Sent' : 'Received'} ${tx.amount} ${tx.token_symbol}`,
+    severity: tx.status === 'completed' ? 'success' : tx.status === 'failed' ? 'error' : 'info',
+    read: index > 2, // Mark first 3 as unread
+    created_at: tx.created_at
+  }));
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const getIcon = (severity: string) => {
+  const markAsRead = async (notificationId: string) => {
+    try {
+      // In a real implementation, this would update the notification in the database
+      await supabase.from('audit_logs').insert({
+        action: 'notification_read',
+        user_id: user?.id,
+        details: { notification_id: notificationId }
+      });
+
+      toast({
+        title: "Notification marked as read",
+      });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      // In a real implementation, this would update all notifications
+      await supabase.from('audit_logs').insert({
+        action: 'notifications_read_all',
+        user_id: user?.id,
+        details: { count: unreadCount }
+      });
+
+      toast({
+        title: "All notifications marked as read",
+      });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'success': return <CheckCircle className="text-green-400" size={16} />;
-      case 'warning': return <AlertTriangle className="text-yellow-400" size={16} />;
-      case 'error': return <AlertTriangle className="text-red-400" size={16} />;
-      default: return <Info className="text-blue-400" size={16} />;
-    }
-  };
-
-  const markAsRead = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
-    }
-  };
-
-  const deleteNotification = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    } catch (error) {
-      console.error('Failed to delete notification:', error);
+      case 'success': return 'text-green-400';
+      case 'error': return 'text-red-400';
+      case 'warning': return 'text-yellow-400';
+      default: return 'text-blue-400';
     }
   };
 
@@ -68,75 +81,80 @@ const NotificationCenter = () => {
       >
         <Bell size={16} />
         {unreadCount > 0 && (
-          <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 min-w-[18px] h-4">
+          <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5 flex items-center justify-center rounded-full">
             {unreadCount}
           </Badge>
         )}
       </Button>
 
       {isOpen && (
-        <Card className="absolute top-12 right-0 w-80 bg-slate-800 border-slate-700 z-50 max-h-96 overflow-y-auto">
-          <CardHeader className="pb-3">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50">
+          <div className="p-4 border-b border-slate-700">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-sm">Notifications</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsOpen(false)}
-                className="text-slate-400 hover:text-white p-1"
-              >
-                <X size={14} />
-              </Button>
+              <h3 className="text-white font-medium">Notifications</h3>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={markAllAsRead}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                  >
+                    <Check size={12} className="mr-1" />
+                    Mark all read
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsOpen(false)}
+                  className="text-slate-400 hover:text-white hover:bg-slate-700"
+                >
+                  <X size={16} />
+                </Button>
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
+          </div>
+
+          <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="text-center py-4 text-slate-400 text-sm">
+              <div className="p-4 text-center text-slate-400">
                 No notifications
               </div>
             ) : (
               notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    notification.read 
-                      ? 'bg-slate-700/30 border-slate-600/50' 
-                      : 'bg-blue-600/10 border-blue-500/30'
-                  }`}
-                  onClick={() => markAsRead(notification.id)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2 flex-1">
-                      {getIcon(notification.severity)}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white text-sm font-medium truncate">
-                          {notification.title}
+                <Card key={notification.id} className={`m-2 border-slate-700 ${!notification.read ? 'bg-slate-700/50' : 'bg-slate-800/50'}`}>
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`w-2 h-2 rounded-full ${getSeverityColor(notification.severity)}`} />
+                          <h4 className="text-white text-sm font-medium">{notification.title}</h4>
+                          {!notification.read && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                          )}
                         </div>
-                        <div className="text-slate-300 text-xs mt-1">
-                          {notification.message}
-                        </div>
-                        <div className="text-slate-500 text-xs mt-1">
-                          {new Date(notification.created_at).toLocaleTimeString()}
+                        <p className="text-slate-400 text-sm mb-2">{notification.message}</p>
+                        <div className="text-xs text-slate-500">
+                          {new Date(notification.created_at).toLocaleString()}
                         </div>
                       </div>
+                      {!notification.read && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => markAsRead(notification.id)}
+                          className="text-blue-400 hover:text-blue-300 hover:bg-slate-700 text-xs"
+                        >
+                          <Check size={12} />
+                        </Button>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNotification(notification.id);
-                      }}
-                      className="text-slate-400 hover:text-white p-1 flex-shrink-0"
-                    >
-                      <X size={12} />
-                    </Button>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

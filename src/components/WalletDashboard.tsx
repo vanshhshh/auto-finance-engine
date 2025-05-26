@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Download, Plus, Minus, Activity, Settings, LogOut, BarChart3, Shield, Brain, Zap, Users, Building } from 'lucide-react';
+import { Wallet, Send, Download, Activity, Settings, LogOut, BarChart3, Shield, Brain, Zap, Users, Building } from 'lucide-react';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
 import ActivityLog from './ActivityLog';
@@ -14,13 +14,14 @@ import NotificationCenter from './NotificationCenter';
 import SmartContractBridge from './SmartContractBridge';
 import AIAssistant from './AIAssistant';
 import AdminDashboard from './AdminDashboard';
+import UserSettings from './UserSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletData } from '@/hooks/useWalletData';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
 
 const WalletDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
-  const [modalType, setModalType] = useState<'send' | 'receive' | 'mint' | 'burn' | null>(null);
+  const [modalType, setModalType] = useState<'send' | 'receive' | null>(null);
   const { user, signOut } = useAuth();
   const { profile, balances } = useWalletData();
   
@@ -34,8 +35,10 @@ const WalletDashboard = () => {
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'activity', label: 'Activity', icon: Activity },
     { id: 'rules', label: 'Rules', icon: Settings },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'compliance', label: 'Compliance', icon: Shield },
+    ...(isAdmin ? [
+      { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+      { id: 'compliance', label: 'Compliance', icon: Shield }
+    ] : []),
     { id: 'bridge', label: 'Smart Contracts', icon: Zap },
     { id: 'ai', label: 'AI Assistant', icon: Brain },
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Users }] : []),
@@ -79,16 +82,16 @@ const WalletDashboard = () => {
           </div>
           <div className="flex items-center gap-4">
             <NotificationCenter />
-            <Badge variant="default" className="px-3 py-1">
+            <Badge variant="default" className="px-3 py-1 bg-green-600 text-white">
               Connected
             </Badge>
             {isAdmin && (
-              <Badge className="bg-red-600 px-3 py-1">
+              <Badge className="bg-red-600 px-3 py-1 text-white">
                 Admin
               </Badge>
             )}
             {profile?.organization && (
-              <Badge variant="outline" className="border-slate-600 text-slate-300 px-3 py-1">
+              <Badge variant="outline" className="border-blue-400 text-blue-300 px-3 py-1">
                 <Building size={14} className="mr-1" />
                 {profile.organization.type}
               </Badge>
@@ -101,8 +104,17 @@ const WalletDashboard = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setActiveTab('settings')}
+              className="border-blue-400 text-blue-300 hover:bg-blue-600 hover:text-white"
+            >
+              <Settings size={16} className="mr-2" />
+              Settings
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleSignOut}
-              className="border-slate-600 text-white hover:bg-slate-700"
+              className="border-red-400 text-red-300 hover:bg-red-600 hover:text-white"
             >
               <LogOut size={16} className="mr-2" />
               Sign Out
@@ -179,7 +191,7 @@ const WalletDashboard = () => {
               <CardTitle className="text-white">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button
                   onClick={() => setModalType('send')}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -189,25 +201,10 @@ const WalletDashboard = () => {
                 </Button>
                 <Button
                   onClick={() => setModalType('receive')}
-                  variant="outline"
-                  className="border-slate-600 text-white hover:bg-slate-700"
+                  className="bg-green-600 hover:bg-green-700 text-white"
                 >
                   <Download size={18} className="mr-2" />
                   Receive
-                </Button>
-                <Button
-                  onClick={() => setModalType('mint')}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Plus size={18} className="mr-2" />
-                  Mint
-                </Button>
-                <Button
-                  onClick={() => setModalType('burn')}
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  <Minus size={18} className="mr-2" />
-                  Burn
                 </Button>
               </div>
             </CardContent>
@@ -217,11 +214,12 @@ const WalletDashboard = () => {
 
       {activeTab === 'activity' && <ActivityLog />}
       {activeTab === 'rules' && <RuleBuilder />}
-      {activeTab === 'analytics' && <AnalyticsDashboard />}
-      {activeTab === 'compliance' && <ComplianceMonitor />}
+      {activeTab === 'analytics' && isAdmin && <AnalyticsDashboard />}
+      {activeTab === 'compliance' && isAdmin && <ComplianceMonitor />}
       {activeTab === 'bridge' && <SmartContractBridge />}
       {activeTab === 'ai' && <AIAssistant />}
       {activeTab === 'admin' && isAdmin && <AdminDashboard />}
+      {activeTab === 'settings' && <UserSettings />}
 
       {/* Transaction Modal */}
       {modalType && (
