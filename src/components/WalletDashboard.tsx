@@ -24,10 +24,8 @@ const WalletDashboard = () => {
   const { profile, balances } = useWalletData();
   const { toast } = useToast();
   
-  // Enable real-time updates
   useRealTimeData();
 
-  // Check if user is admin
   const isAdmin = user?.email?.includes('admin') || false;
 
   const tabs = [
@@ -72,7 +70,7 @@ const WalletDashboard = () => {
       toast({
         title: "KYC Verification Required",
         description: "You must complete KYC verification and get wallet approval before sending CBDC.",
-        variant: "destructive",
+        className: "bg-blue-600 text-white border-blue-700",
       });
       return;
     }
@@ -83,6 +81,7 @@ const WalletDashboard = () => {
     toast({
       title: "Add CBDC",
       description: "Please use your bank's app to add CBDC to your wallet.",
+      className: "bg-blue-600 text-white border-blue-700",
     });
   };
 
