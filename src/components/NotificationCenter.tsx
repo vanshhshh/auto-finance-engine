@@ -22,7 +22,7 @@ const NotificationCenter = () => {
     title: `${tx.transaction_type.charAt(0).toUpperCase() + tx.transaction_type.slice(1)} Transaction`,
     message: `${tx.transaction_type === 'send' ? 'Sent' : 'Received'} ${tx.amount} ${tx.token_symbol}`,
     severity: tx.status === 'completed' ? 'success' : tx.status === 'failed' ? 'error' : 'info',
-    read: index > 2, // Mark first 3 as unread
+    read: index > 2,
     created_at: tx.created_at
   }));
 
@@ -30,7 +30,6 @@ const NotificationCenter = () => {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      // In a real implementation, this would update the notification in the database
       await supabase.from('audit_logs').insert({
         action: 'notification_read',
         user_id: user?.id,
@@ -47,7 +46,6 @@ const NotificationCenter = () => {
 
   const markAllAsRead = async () => {
     try {
-      // In a real implementation, this would update all notifications
       await supabase.from('audit_logs').insert({
         action: 'notifications_read_all',
         user_id: user?.id,
@@ -64,10 +62,10 @@ const NotificationCenter = () => {
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'success': return 'text-green-400';
-      case 'error': return 'text-red-400';
-      case 'warning': return 'text-yellow-400';
-      default: return 'text-blue-400';
+      case 'success': return 'text-green-600';
+      case 'error': return 'text-red-600';
+      case 'warning': return 'text-yellow-600';
+      default: return 'text-blue-600';
     }
   };
 
@@ -77,7 +75,7 @@ const NotificationCenter = () => {
         variant="outline"
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative border-slate-600 text-white hover:bg-slate-700"
+        className="relative border-gray-300 text-gray-700 hover:bg-gray-50"
       >
         <Bell size={16} />
         {unreadCount > 0 && (
@@ -88,10 +86,10 @@ const NotificationCenter = () => {
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50">
-          <div className="p-4 border-b border-slate-700">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+          <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-white font-medium">Notifications</h3>
+              <h3 className="text-gray-900 font-medium">Notifications</h3>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <Button
@@ -107,7 +105,7 @@ const NotificationCenter = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsOpen(false)}
-                  className="text-slate-400 hover:text-white hover:bg-slate-700"
+                  className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 >
                   <X size={16} />
                 </Button>
@@ -117,24 +115,24 @@ const NotificationCenter = () => {
 
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="p-4 text-center text-slate-400">
+              <div className="p-4 text-center text-gray-600">
                 No notifications
               </div>
             ) : (
               notifications.map((notification) => (
-                <Card key={notification.id} className={`m-2 border-slate-700 ${!notification.read ? 'bg-slate-700/50' : 'bg-slate-800/50'}`}>
+                <Card key={notification.id} className={`m-2 border-gray-200 ${!notification.read ? 'bg-blue-50' : 'bg-white'}`}>
                   <CardContent className="p-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <div className={`w-2 h-2 rounded-full ${getSeverityColor(notification.severity)}`} />
-                          <h4 className="text-white text-sm font-medium">{notification.title}</h4>
+                          <h4 className="text-gray-900 text-sm font-medium">{notification.title}</h4>
                           {!notification.read && (
                             <div className="w-2 h-2 bg-blue-500 rounded-full" />
                           )}
                         </div>
-                        <p className="text-slate-400 text-sm mb-2">{notification.message}</p>
-                        <div className="text-xs text-slate-500">
+                        <p className="text-gray-600 text-sm mb-2">{notification.message}</p>
+                        <div className="text-xs text-gray-500">
                           {new Date(notification.created_at).toLocaleString()}
                         </div>
                       </div>
@@ -143,7 +141,7 @@ const NotificationCenter = () => {
                           size="sm"
                           variant="ghost"
                           onClick={() => markAsRead(notification.id)}
-                          className="text-blue-400 hover:text-blue-300 hover:bg-slate-700 text-xs"
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs"
                         >
                           <Check size={12} />
                         </Button>

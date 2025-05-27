@@ -39,6 +39,39 @@ export type Database = {
         }
         Relationships: []
       }
+      compliance_events: {
+        Row: {
+          created_at: string | null
+          description: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          resolved: boolean | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          severity: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          severity?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fx_rates: {
         Row: {
           id: string
@@ -60,32 +93,163 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_documents: {
+        Row: {
+          admin_notes: string | null
+          document_type: string
+          file_name: string
+          file_path: string
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          upload_date: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          document_type: string
+          file_name: string
+          file_path: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          upload_date?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          document_type?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          upload_date?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      organizations: {
+        Row: {
+          compliance_score: number | null
+          country_code: string
+          created_at: string | null
+          id: string
+          kyc_status: string | null
+          name: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          compliance_score?: number | null
+          country_code: string
+          created_at?: string | null
+          id?: string
+          kyc_status?: string | null
+          name: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          compliance_score?: number | null
+          country_code?: string
+          created_at?: string | null
+          id?: string
+          kyc_status?: string | null
+          name?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          approved_tokens: string[] | null
+          country_of_residence: string | null
           created_at: string
           id: string
+          kyc_documents_uploaded: boolean | null
+          kyc_status: string | null
+          nationality: string | null
+          organization_id: string | null
           role: string
           updated_at: string
           user_id: string
           wallet_address: string | null
+          wallet_approved: boolean | null
         }
         Insert: {
+          approved_tokens?: string[] | null
+          country_of_residence?: string | null
           created_at?: string
           id?: string
+          kyc_documents_uploaded?: boolean | null
+          kyc_status?: string | null
+          nationality?: string | null
+          organization_id?: string | null
           role?: string
           updated_at?: string
           user_id: string
           wallet_address?: string | null
+          wallet_approved?: boolean | null
         }
         Update: {
+          approved_tokens?: string[] | null
+          country_of_residence?: string | null
           created_at?: string
           id?: string
+          kyc_documents_uploaded?: boolean | null
+          kyc_status?: string | null
+          nationality?: string | null
+          organization_id?: string | null
           role?: string
           updated_at?: string
           user_id?: string
           wallet_address?: string | null
+          wallet_approved?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       programmable_rules: {
         Row: {

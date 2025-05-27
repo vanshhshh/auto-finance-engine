@@ -19,6 +19,7 @@ const UserSettings = () => {
   const { toast } = useToast();
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [kycStep, setKycStep] = useState(1);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [kycData, setKycData] = useState({
     firstName: '',
     lastName: '',
@@ -34,25 +35,27 @@ const UserSettings = () => {
   });
 
   const countries = [
-    { code: 'IN', name: 'India', docs: ['Aadhaar Card', 'PAN Card', 'Passport', 'Voter ID'] },
-    { code: 'US', name: 'United States', docs: ['Driver License', 'Passport', 'State ID', 'Social Security Card'] },
-    { code: 'AE', name: 'UAE', docs: ['Emirates ID', 'Passport', 'Visa', 'Labor Card'] },
-    { code: 'GB', name: 'United Kingdom', docs: ['Passport', 'Driver License', 'National Insurance', 'Utility Bill'] },
-    { code: 'SG', name: 'Singapore', docs: ['NRIC', 'Passport', 'Work Permit', 'Utility Bill'] },
-    { code: 'CA', name: 'Canada', docs: ['Driver License', 'Passport', 'Health Card', 'SIN Card'] }
+    { code: 'IN', name: 'India', docs: ['Aadhaar Card', 'PAN Card', 'Passport', 'Address Proof'] },
+    { code: 'US', name: 'United States', docs: ['Driver License', 'Passport', 'SSN Card', 'Utility Bill'] },
+    { code: 'AE', name: 'UAE', docs: ['Emirates ID', 'Passport', 'Visa', 'Salary Certificate'] },
+    { code: 'GB', name: 'United Kingdom', docs: ['Passport', 'Driver License', 'National Insurance', 'Council Tax Bill'] },
+    { code: 'SG', name: 'Singapore', docs: ['NRIC', 'Passport', 'Work Permit', 'Bank Statement'] },
+    { code: 'CA', name: 'Canada', docs: ['Driver License', 'Passport', 'Health Card', 'Employment Letter'] }
   ];
 
   const getRequiredDocuments = (countryCode: string) => {
     const country = countries.find(c => c.code === countryCode);
-    return country ? country.docs : ['Passport', 'National ID', 'Proof of Address'];
+    return country ? country.docs : ['Passport', 'National ID', 'Proof of Address', 'Income Proof'];
   };
 
   const generateQRCode = () => {
     const qrData = {
       walletAddress: profile?.wallet_address,
-      name: `${kycData.firstName} ${kycData.lastName}`,
+      name: `${kycData.firstName} ${kycData.lastName}` || user?.email?.split('@')[0],
       platform: 'Gate Finance',
-      version: '1.0'
+      type: 'payment_request',
+      version: '1.0',
+      userId: user?.id
     };
     return JSON.stringify(qrData);
   };
@@ -65,8 +68,63 @@ const UserSettings = () => {
     });
   };
 
+  const handleFileUpload = async (file: File, docType: string) => {
+    if (!user) return;
+    
+    setUploadingDoc(docType);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${docType}_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('kyc-documents')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Save document record
+      const { error: dbError } = await supabase
+        .from('kyc_documents')
+        .insert({
+          user_id: user.id,
+          document_type: docType,
+          file_name: file.name,
+          file_path: fileName,
+          status: 'pending'
+        });
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Document Uploaded",
+        description: "Your document has been uploaded and is being reviewed.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingDoc(null);
+    }
+  };
+
   const handleKycSubmit = async () => {
     try {
+      // Update profile with KYC data
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          kyc_status: 'under_review',
+          kyc_documents_uploaded: true,
+          country_of_residence: kycData.countryOfResidence,
+          nationality: kycData.nationality
+        })
+        .eq('user_id', user?.id);
+
+      if (profileError) throw profileError;
+
       await supabase.from('audit_logs').insert({
         action: 'kyc_submission',
         user_id: user?.id,
@@ -79,9 +137,9 @@ const UserSettings = () => {
 
       toast({
         title: "KYC Submitted",
-        description: "Your KYC information has been submitted for review.",
+        description: "Your KYC information has been submitted for review. You'll be notified once approved.",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
         description: "Failed to submit KYC information.",
@@ -91,61 +149,61 @@ const UserSettings = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+    <div className="space-y-6 bg-white">
+      <Card className="bg-gray-50 border-gray-200">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <User className="text-blue-400" size={24} />
+          <CardTitle className="text-gray-900 flex items-center gap-2">
+            <User className="text-blue-600" size={24} />
             Account Settings
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-6 bg-slate-700/50">
-              <TabsTrigger value="profile" className="text-slate-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Profile</TabsTrigger>
-              <TabsTrigger value="wallet" className="text-slate-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Wallet</TabsTrigger>
-              <TabsTrigger value="kyc" className="text-slate-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">KYC</TabsTrigger>
-              <TabsTrigger value="security" className="text-slate-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Security</TabsTrigger>
-              <TabsTrigger value="notifications" className="text-slate-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Notifications</TabsTrigger>
-              <TabsTrigger value="payment" className="text-slate-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Payment</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-6 bg-gray-100">
+              <TabsTrigger value="profile" className="text-gray-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Profile</TabsTrigger>
+              <TabsTrigger value="wallet" className="text-gray-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Wallet</TabsTrigger>
+              <TabsTrigger value="kyc" className="text-gray-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white">KYC</TabsTrigger>
+              <TabsTrigger value="security" className="text-gray-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Security</TabsTrigger>
+              <TabsTrigger value="notifications" className="text-gray-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Notifications</TabsTrigger>
+              <TabsTrigger value="payment" className="text-gray-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Payment</TabsTrigger>
             </TabsList>
 
             {/* Profile Tab */}
             <TabsContent value="profile" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="email" className="text-slate-300">Email</Label>
+                  <Label htmlFor="email" className="text-gray-700">Email</Label>
                   <Input 
                     id="email" 
                     value={user?.email || ''} 
                     disabled 
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="bg-gray-100 border-gray-300 text-gray-900"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="role" className="text-slate-300">Role</Label>
+                  <Label htmlFor="role" className="text-gray-700">Role</Label>
                   <Input 
                     id="role" 
                     value={profile?.role || 'user'} 
                     disabled 
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="bg-gray-100 border-gray-300 text-gray-900"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phone" className="text-slate-300">Phone Number</Label>
+                  <Label htmlFor="phone" className="text-gray-700">Phone Number</Label>
                   <Input 
                     id="phone" 
                     placeholder="+1 234 567 8900"
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="bg-white border-gray-300 text-gray-900"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="language" className="text-slate-300">Language</Label>
+                  <Label htmlFor="language" className="text-gray-700">Language</Label>
                   <Select>
-                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                    <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                       <SelectValue placeholder="Select language" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-700 border-slate-600">
+                    <SelectContent className="bg-white border-gray-300">
                       <SelectItem value="en">English</SelectItem>
                       <SelectItem value="hi">Hindi</SelectItem>
                       <SelectItem value="ar">Arabic</SelectItem>
@@ -161,11 +219,11 @@ const UserSettings = () => {
             {/* Wallet Tab */}
             <TabsContent value="wallet" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="bg-slate-700/50 border-slate-600">
+                <Card className="bg-white border-gray-200">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Wallet className="text-blue-400" size={20} />
-                      Wallet Address
+                    <CardTitle className="text-gray-900 flex items-center gap-2">
+                      <Wallet className="text-blue-600" size={20} />
+                      Wallet Details
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -173,7 +231,7 @@ const UserSettings = () => {
                       <Input 
                         value={profile?.wallet_address || ''} 
                         disabled 
-                        className="bg-slate-600 border-slate-500 text-white font-mono text-sm"
+                        className="bg-gray-100 border-gray-300 text-gray-900 font-mono text-sm"
                       />
                       <Button 
                         size="sm" 
@@ -184,54 +242,39 @@ const UserSettings = () => {
                       </Button>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Label className="text-slate-300">Private Key</Label>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setShowPrivateKey(!showPrivateKey)}
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                      >
-                        {showPrivateKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </Button>
+                      <Badge className={`${profile?.wallet_approved ? 'bg-green-600' : 'bg-orange-600'} text-white`}>
+                        {profile?.wallet_approved ? 'Approved' : 'Pending Approval'}
+                      </Badge>
+                      <Badge className={`${profile?.kyc_status === 'approved' ? 'bg-green-600' : 'bg-orange-600'} text-white`}>
+                        KYC: {profile?.kyc_status || 'Pending'}
+                      </Badge>
                     </div>
-                    {showPrivateKey && (
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          value="0x..." 
-                          disabled 
-                          className="bg-slate-600 border-slate-500 text-white font-mono text-sm"
-                        />
-                        <Button 
-                          size="sm" 
-                          onClick={() => copyToClipboard('0x...', 'Private key')}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          <Copy size={16} />
-                        </Button>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-700/50 border-slate-600">
+                <Card className="bg-white border-gray-200">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <QrCode className="text-blue-400" size={20} />
-                      QR Code
+                    <CardTitle className="text-gray-900 flex items-center gap-2">
+                      <QrCode className="text-blue-600" size={20} />
+                      Payment QR Code
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-center">
-                      <div className="bg-white p-4 rounded-lg">
-                        <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-gray-500 text-xs">
-                          QR Code
+                      <div className="bg-white p-4 rounded-lg border border-gray-300">
+                        <div className="w-32 h-32 bg-gray-100 flex items-center justify-center text-gray-500 text-xs border border-gray-300 rounded">
+                          <div className="text-center">
+                            <QrCode size={48} className="mx-auto mb-2" />
+                            <div className="text-xs">QR Code</div>
+                            <div className="text-xs text-gray-400">Scan to Pay</div>
+                          </div>
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <Button 
                         size="sm" 
-                        onClick={() => copyToClipboard(generateQRCode(), 'QR data')}
+                        onClick={() => copyToClipboard(generateQRCode(), 'QR payment data')}
                         className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
                       >
                         <Copy size={16} className="mr-1" />
@@ -252,53 +295,69 @@ const UserSettings = () => {
 
             {/* KYC Tab */}
             <TabsContent value="kyc" className="space-y-6">
-              <Card className="bg-slate-700/50 border-slate-600">
+              <Card className="bg-white border-gray-200">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Shield className="text-blue-400" size={20} />
+                  <CardTitle className="text-gray-900 flex items-center gap-2">
+                    <Shield className="text-blue-600" size={20} />
                     KYC Verification - Step {kycStep} of 3
+                    <Badge className={`ml-auto ${
+                      profile?.kyc_status === 'approved' ? 'bg-green-600' :
+                      profile?.kyc_status === 'under_review' ? 'bg-orange-600' :
+                      profile?.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-gray-600'
+                    } text-white`}>
+                      {profile?.kyc_status?.toUpperCase() || 'PENDING'}
+                    </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {profile?.kyc_status === 'under_review' && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <div className="text-orange-800 font-medium">Documents Under Review</div>
+                      <div className="text-orange-700 text-sm">
+                        Your KYC documents are being verified by our team. This process typically takes 1-3 business days.
+                      </div>
+                    </div>
+                  )}
+
                   {kycStep === 1 && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium text-white">Personal Information</h3>
+                      <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="firstName" className="text-slate-300">First Name</Label>
+                          <Label htmlFor="firstName" className="text-gray-700">First Name</Label>
                           <Input 
                             id="firstName"
                             value={kycData.firstName}
                             onChange={(e) => setKycData({...kycData, firstName: e.target.value})}
-                            className="bg-slate-600 border-slate-500 text-white"
+                            className="bg-white border-gray-300 text-gray-900"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="lastName" className="text-slate-300">Last Name</Label>
+                          <Label htmlFor="lastName" className="text-gray-700">Last Name</Label>
                           <Input 
                             id="lastName"
                             value={kycData.lastName}
                             onChange={(e) => setKycData({...kycData, lastName: e.target.value})}
-                            className="bg-slate-600 border-slate-500 text-white"
+                            className="bg-white border-gray-300 text-gray-900"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="dob" className="text-slate-300">Date of Birth</Label>
+                          <Label htmlFor="dob" className="text-gray-700">Date of Birth</Label>
                           <Input 
                             id="dob"
                             type="date"
                             value={kycData.dateOfBirth}
                             onChange={(e) => setKycData({...kycData, dateOfBirth: e.target.value})}
-                            className="bg-slate-600 border-slate-500 text-white"
+                            className="bg-white border-gray-300 text-gray-900"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="nationality" className="text-slate-300">Nationality</Label>
+                          <Label htmlFor="nationality" className="text-gray-700">Nationality</Label>
                           <Select onValueChange={(value) => setKycData({...kycData, nationality: value})}>
-                            <SelectTrigger className="bg-slate-600 border-slate-500 text-white">
+                            <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                               <SelectValue placeholder="Select nationality" />
                             </SelectTrigger>
-                            <SelectContent className="bg-slate-700 border-slate-600">
+                            <SelectContent className="bg-white border-gray-300">
                               {countries.map((country) => (
                                 <SelectItem key={country.code} value={country.code}>
                                   {country.name}
@@ -308,12 +367,12 @@ const UserSettings = () => {
                           </Select>
                         </div>
                         <div>
-                          <Label htmlFor="residence" className="text-slate-300">Country of Residence</Label>
+                          <Label htmlFor="residence" className="text-gray-700">Country of Residence</Label>
                           <Select onValueChange={(value) => setKycData({...kycData, countryOfResidence: value})}>
-                            <SelectTrigger className="bg-slate-600 border-slate-500 text-white">
+                            <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                               <SelectValue placeholder="Select country" />
                             </SelectTrigger>
-                            <SelectContent className="bg-slate-700 border-slate-600">
+                            <SelectContent className="bg-white border-gray-300">
                               {countries.map((country) => (
                                 <SelectItem key={country.code} value={country.code}>
                                   {country.name}
@@ -323,12 +382,12 @@ const UserSettings = () => {
                           </Select>
                         </div>
                         <div>
-                          <Label htmlFor="phone" className="text-slate-300">Phone Number</Label>
+                          <Label htmlFor="phone" className="text-gray-700">Phone Number</Label>
                           <Input 
                             id="phone"
                             value={kycData.phoneNumber}
                             onChange={(e) => setKycData({...kycData, phoneNumber: e.target.value})}
-                            className="bg-slate-600 border-slate-500 text-white"
+                            className="bg-white border-gray-300 text-gray-900"
                           />
                         </div>
                       </div>
@@ -337,54 +396,54 @@ const UserSettings = () => {
 
                   {kycStep === 2 && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium text-white">Address Information</h3>
+                      <h3 className="text-lg font-medium text-gray-900">Address & Employment</h3>
                       <div className="grid grid-cols-1 gap-4">
                         <div>
-                          <Label htmlFor="address" className="text-slate-300">Full Address</Label>
+                          <Label htmlFor="address" className="text-gray-700">Full Address</Label>
                           <Input 
                             id="address"
                             value={kycData.address}
                             onChange={(e) => setKycData({...kycData, address: e.target.value})}
-                            className="bg-slate-600 border-slate-500 text-white"
+                            className="bg-white border-gray-300 text-gray-900"
                           />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="city" className="text-slate-300">City</Label>
+                            <Label htmlFor="city" className="text-gray-700">City</Label>
                             <Input 
                               id="city"
                               value={kycData.city}
                               onChange={(e) => setKycData({...kycData, city: e.target.value})}
-                              className="bg-slate-600 border-slate-500 text-white"
+                              className="bg-white border-gray-300 text-gray-900"
                             />
                           </div>
                           <div>
-                            <Label htmlFor="postal" className="text-slate-300">Postal Code</Label>
+                            <Label htmlFor="postal" className="text-gray-700">Postal Code</Label>
                             <Input 
                               id="postal"
                               value={kycData.postalCode}
                               onChange={(e) => setKycData({...kycData, postalCode: e.target.value})}
-                              className="bg-slate-600 border-slate-500 text-white"
+                              className="bg-white border-gray-300 text-gray-900"
                             />
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="occupation" className="text-slate-300">Occupation</Label>
+                            <Label htmlFor="occupation" className="text-gray-700">Occupation</Label>
                             <Input 
                               id="occupation"
                               value={kycData.occupation}
                               onChange={(e) => setKycData({...kycData, occupation: e.target.value})}
-                              className="bg-slate-600 border-slate-500 text-white"
+                              className="bg-white border-gray-300 text-gray-900"
                             />
                           </div>
                           <div>
-                            <Label htmlFor="funds" className="text-slate-300">Source of Funds</Label>
+                            <Label htmlFor="funds" className="text-gray-700">Source of Funds</Label>
                             <Select onValueChange={(value) => setKycData({...kycData, sourceOfFunds: value})}>
-                              <SelectTrigger className="bg-slate-600 border-slate-500 text-white">
+                              <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                                 <SelectValue placeholder="Select source" />
                               </SelectTrigger>
-                              <SelectContent className="bg-slate-700 border-slate-600">
+                              <SelectContent className="bg-white border-gray-300">
                                 <SelectItem value="salary">Salary</SelectItem>
                                 <SelectItem value="business">Business Income</SelectItem>
                                 <SelectItem value="investment">Investment Returns</SelectItem>
@@ -400,24 +459,51 @@ const UserSettings = () => {
 
                   {kycStep === 3 && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium text-white">Document Upload</h3>
-                      <p className="text-slate-400">Please upload the following documents based on your country of residence:</p>
+                      <h3 className="text-lg font-medium text-gray-900">Document Upload</h3>
+                      <p className="text-gray-600">Upload documents in PDF format only. All documents are required for verification.</p>
                       
                       {kycData.countryOfResidence && (
                         <div className="space-y-4">
-                          <h4 className="text-white font-medium">Required Documents for {countries.find(c => c.code === kycData.countryOfResidence)?.name}:</h4>
+                          <h4 className="text-gray-800 font-medium">Required Documents for {countries.find(c => c.code === kycData.countryOfResidence)?.name}:</h4>
                           {getRequiredDocuments(kycData.countryOfResidence).map((doc, index) => (
-                            <Card key={index} className="bg-slate-600/50 border-slate-500">
+                            <Card key={index} className="bg-white border-gray-200">
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3">
-                                    <FileText className="text-blue-400" size={20} />
-                                    <span className="text-white">{doc}</span>
+                                    <FileText className="text-blue-600" size={20} />
+                                    <span className="text-gray-900">{doc}</span>
                                   </div>
-                                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                                    <Upload size={16} className="mr-1" />
-                                    Upload
-                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="file"
+                                      accept=".pdf"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          if (file.type !== 'application/pdf') {
+                                            toast({
+                                              title: "Invalid File Type",
+                                              description: "Please upload PDF files only.",
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          handleFileUpload(file, doc.toLowerCase().replace(/\s+/g, '_'));
+                                        }
+                                      }}
+                                      className="hidden"
+                                      id={`file-${index}`}
+                                    />
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => document.getElementById(`file-${index}`)?.click()}
+                                      disabled={uploadingDoc === doc.toLowerCase().replace(/\s+/g, '_')}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                      <Upload size={16} className="mr-1" />
+                                      {uploadingDoc === doc.toLowerCase().replace(/\s+/g, '_') ? 'Uploading...' : 'Upload PDF'}
+                                    </Button>
+                                  </div>
                                 </div>
                               </CardContent>
                             </Card>
@@ -432,7 +518,7 @@ const UserSettings = () => {
                       <Button 
                         onClick={() => setKycStep(kycStep - 1)}
                         variant="outline"
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         Previous
                       </Button>
@@ -448,9 +534,10 @@ const UserSettings = () => {
                     ) : (
                       <Button 
                         onClick={handleKycSubmit}
+                        disabled={profile?.kyc_status === 'under_review'}
                         className="bg-green-600 hover:bg-green-700 text-white"
                       >
-                        Submit KYC
+                        {profile?.kyc_status === 'under_review' ? 'Submitted' : 'Submit KYC'}
                       </Button>
                     )}
                   </div>
@@ -461,10 +548,10 @@ const UserSettings = () => {
             {/* Security Tab */}
             <TabsContent value="security" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="bg-slate-700/50 border-slate-600">
+                <Card className="bg-white border-gray-200">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Lock className="text-blue-400" size={20} />
+                    <CardTitle className="text-gray-900 flex items-center gap-2">
+                      <Lock className="text-blue-600" size={20} />
                       Password & Authentication
                     </CardTitle>
                   </CardHeader>
@@ -481,20 +568,20 @@ const UserSettings = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-700/50 border-slate-600">
+                <Card className="bg-white border-gray-200">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Shield className="text-blue-400" size={20} />
+                    <CardTitle className="text-gray-900 flex items-center gap-2">
+                      <Shield className="text-blue-600" size={20} />
                       Account Security
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-300">Login Alerts</span>
+                      <span className="text-gray-700">Login Alerts</span>
                       <Badge className="bg-green-600 text-white">Enabled</Badge>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-300">Transaction Limits</span>
+                      <span className="text-gray-700">Transaction Limits</span>
                       <Badge className="bg-blue-600 text-white">Active</Badge>
                     </div>
                     <Button className="w-full bg-red-600 hover:bg-red-700 text-white">
@@ -507,10 +594,10 @@ const UserSettings = () => {
 
             {/* Notifications Tab */}
             <TabsContent value="notifications" className="space-y-4">
-              <Card className="bg-slate-700/50 border-slate-600">
+              <Card className="bg-white border-gray-200">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Bell className="text-blue-400" size={20} />
+                  <CardTitle className="text-gray-900 flex items-center gap-2">
+                    <Bell className="text-blue-600" size={20} />
                     Notification Preferences
                   </CardTitle>
                 </CardHeader>
@@ -518,22 +605,22 @@ const UserSettings = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-white">Transaction Alerts</div>
-                        <div className="text-slate-400 text-sm">Get notified of all transactions</div>
+                        <div className="text-gray-900">Transaction Alerts</div>
+                        <div className="text-gray-600 text-sm">Get notified of all transactions</div>
                       </div>
                       <Badge className="bg-green-600 text-white">ON</Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-white">Security Alerts</div>
-                        <div className="text-slate-400 text-sm">Login and security notifications</div>
+                        <div className="text-gray-900">Security Alerts</div>
+                        <div className="text-gray-600 text-sm">Login and security notifications</div>
                       </div>
                       <Badge className="bg-green-600 text-white">ON</Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-white">Marketing Emails</div>
-                        <div className="text-slate-400 text-sm">Product updates and offers</div>
+                        <div className="text-gray-900">Marketing Emails</div>
+                        <div className="text-gray-600 text-sm">Product updates and offers</div>
                       </div>
                       <Badge className="bg-gray-600 text-white">OFF</Badge>
                     </div>
@@ -545,26 +632,26 @@ const UserSettings = () => {
             {/* Payment Tab */}
             <TabsContent value="payment" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="bg-slate-700/50 border-slate-600">
+                <Card className="bg-white border-gray-200">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <CreditCard className="text-blue-400" size={20} />
+                    <CardTitle className="text-gray-900 flex items-center gap-2">
+                      <CreditCard className="text-blue-600" size={20} />
                       Transaction Limits
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex justify-between text-slate-300">
+                      <div className="flex justify-between text-gray-700">
                         <span>Daily Limit</span>
                         <span>₹1,00,000</span>
                       </div>
-                      <div className="flex justify-between text-slate-300">
+                      <div className="flex justify-between text-gray-700">
                         <span>Monthly Limit</span>
                         <span>₹30,00,000</span>
                       </div>
-                      <div className="flex justify-between text-slate-300">
+                      <div className="flex justify-between text-gray-700">
                         <span>Used Today</span>
-                        <span>₹25,000</span>
+                        <span>₹0</span>
                       </div>
                     </div>
                     <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
@@ -573,21 +660,21 @@ const UserSettings = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-700/50 border-slate-600">
+                <Card className="bg-white border-gray-200">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Globe className="text-blue-400" size={20} />
+                    <CardTitle className="text-gray-900 flex items-center gap-2">
+                      <Globe className="text-blue-600" size={20} />
                       Regional Settings
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <Label className="text-slate-300">Primary Currency</Label>
+                      <Label className="text-gray-700">Primary Currency</Label>
                       <Select>
-                        <SelectTrigger className="bg-slate-600 border-slate-500 text-white">
+                        <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                           <SelectValue placeholder="Select currency" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-700 border-slate-600">
+                        <SelectContent className="bg-white border-gray-300">
                           <SelectItem value="eINR">eINR (₹)</SelectItem>
                           <SelectItem value="eUSD">eUSD ($)</SelectItem>
                           <SelectItem value="eAED">eAED (د.إ)</SelectItem>
@@ -595,12 +682,12 @@ const UserSettings = () => {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-slate-300">Time Zone</Label>
+                      <Label className="text-gray-700">Time Zone</Label>
                       <Select>
-                        <SelectTrigger className="bg-slate-600 border-slate-500 text-white">
+                        <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                           <SelectValue placeholder="Select timezone" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-700 border-slate-600">
+                        <SelectContent className="bg-white border-gray-300">
                           <SelectItem value="UTC+5:30">IST (UTC+5:30)</SelectItem>
                           <SelectItem value="UTC+4">GST (UTC+4)</SelectItem>
                           <SelectItem value="UTC-5">EST (UTC-5)</SelectItem>

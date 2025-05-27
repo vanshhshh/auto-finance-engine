@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Users, Settings, AlertTriangle, CheckCircle, Pause, Play, Building } from 'lucide-react';
+import { Shield, Users, Settings, CheckCircle, X, Eye, FileText, Download } from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -17,25 +17,130 @@ const AdminDashboard = () => {
   const [burnLimit, setBurnLimit] = useState('500000');
   const [dailyLimit, setDailyLimit] = useState('50000');
   const { toast } = useToast();
-  const { allUsers, complianceEvents, auditLogs, failingRules } = useAdminData();
+  const { allUsers, complianceEvents, auditLogs } = useAdminData();
 
-  const handleUserAction = async (userId: string, action: string) => {
+  const [kycDocuments, setKycDocuments] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    const fetchKycDocuments = async () => {
+      const { data } = await supabase
+        .from('kyc_documents')
+        .select(`
+          *,
+          profile:profiles(*)
+        `)
+        .order('upload_date', { ascending: false });
+      
+      setKycDocuments(data || []);
+    };
+
+    if (activeTab === 'kyc') {
+      fetchKycDocuments();
+    }
+  }, [activeTab]);
+
+  const handleApproveUser = async (userId: string, tokenSymbol: string) => {
     try {
+      // Update user profile
+      await supabase
+        .from('profiles')
+        .update({ 
+          kyc_status: 'approved',
+          wallet_approved: true,
+          approved_tokens: [tokenSymbol]
+        })
+        .eq('user_id', userId);
+
       // Log the admin action
       await supabase.from('audit_logs').insert({
-        action: `admin_${action}_user`,
+        action: 'admin_approve_user',
         user_id: userId,
-        details: { admin_action: action, target_user: userId }
+        details: { 
+          admin_action: 'approved',
+          approved_token: tokenSymbol,
+          target_user: userId 
+        }
       });
 
       toast({
-        title: `User ${action}`,
-        description: `User has been ${action}.`,
+        title: "User Approved",
+        description: `User has been approved for ${tokenSymbol} wallet.`,
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: `Failed to ${action} user.`,
+        description: "Failed to approve user.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApproveDocument = async (docId: string, userId: string) => {
+    try {
+      await supabase
+        .from('kyc_documents')
+        .update({ 
+          status: 'approved',
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', docId);
+
+      toast({
+        title: "Document Approved",
+        description: "KYC document has been approved.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to approve document.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRejectDocument = async (docId: string, reason: string) => {
+    try {
+      await supabase
+        .from('kyc_documents')
+        .update({ 
+          status: 'rejected',
+          admin_notes: reason,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', docId);
+
+      toast({
+        title: "Document Rejected",
+        description: "KYC document has been rejected.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reject document.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const downloadDocument = async (filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('kyc-documents')
+        .download(filePath);
+
+      if (error) throw error;
+
+      // Create download link
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filePath.split('/').pop() || 'document.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download document.",
         variant: "destructive",
       });
     }
@@ -43,14 +148,12 @@ const AdminDashboard = () => {
 
   const updateSystemLimits = async () => {
     try {
-      // Update system controls
       await supabase.from('system_controls').upsert([
         { key: 'daily_mint_limit', value: true },
         { key: 'daily_burn_limit', value: true },
         { key: 'user_daily_limit', value: true }
       ]);
 
-      // Log the action
       await supabase.from('audit_logs').insert({
         action: 'update_system_limits',
         details: { 
@@ -75,21 +178,19 @@ const AdminDashboard = () => {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Shield },
-    { id: 'users', label: 'Users & Orgs', icon: Users },
-    { id: 'compliance', label: 'Compliance', icon: AlertTriangle },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'kyc', label: 'KYC Review', icon: FileText },
     { id: 'limits', label: 'System Controls', icon: Settings },
   ];
 
-  // Calculate metrics with available data
   const totalUsers = allUsers.length;
-  const activeUsers = allUsers.filter(u => u.role === 'user').length;
-  const pendingUsers = Math.floor(totalUsers * 0.2); // Simulate pending users
-  const flaggedUsers = Math.floor(totalUsers * 0.05); // Simulate flagged users
+  const pendingKyc = allUsers.filter(u => u.kyc_status === 'under_review').length;
+  const approvedUsers = allUsers.filter(u => u.kyc_status === 'approved').length;
+  const pendingDocuments = kycDocuments.filter(d => d.status === 'pending').length;
 
   return (
-    <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg backdrop-blur-sm overflow-x-auto">
+    <div className="space-y-6 bg-white">
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg backdrop-blur-sm overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -99,7 +200,7 @@ const AdminDashboard = () => {
               className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-red-600 text-white shadow-lg'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               <Icon size={18} />
@@ -109,104 +210,119 @@ const AdminDashboard = () => {
         })}
       </div>
 
-      {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-gray-50 border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-sm">Total Users</p>
-                  <p className="text-2xl font-bold text-white">{totalUsers}</p>
+                  <p className="text-gray-600 text-sm">Total Users</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
                 </div>
-                <Users className="text-blue-400" size={24} />
+                <Users className="text-blue-600" size={24} />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-gray-50 border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-sm">Active Users</p>
-                  <p className="text-2xl font-bold text-green-400">{activeUsers}</p>
+                  <p className="text-gray-600 text-sm">Approved Users</p>
+                  <p className="text-2xl font-bold text-green-600">{approvedUsers}</p>
                 </div>
-                <CheckCircle className="text-green-400" size={24} />
+                <CheckCircle className="text-green-600" size={24} />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-gray-50 border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-sm">Pending Review</p>
-                  <p className="text-2xl font-bold text-yellow-400">{pendingUsers}</p>
+                  <p className="text-gray-600 text-sm">Pending KYC</p>
+                  <p className="text-2xl font-bold text-orange-600">{pendingKyc}</p>
                 </div>
-                <AlertTriangle className="text-yellow-400" size={24} />
+                <FileText className="text-orange-600" size={24} />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-gray-50 border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-sm">Flagged Users</p>
-                  <p className="text-2xl font-bold text-red-400">{flaggedUsers}</p>
+                  <p className="text-gray-600 text-sm">Pending Documents</p>
+                  <p className="text-2xl font-bold text-red-600">{pendingDocuments}</p>
                 </div>
-                <Shield className="text-red-400" size={24} />
+                <Shield className="text-red-600" size={24} />
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Users & Organizations Tab */}
       {activeTab === 'users' && (
         <div className="space-y-6">
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-gray-50 border-gray-200">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="text-gray-900 flex items-center gap-2">
                 <Users size={20} />
-                User Management
+                User Management & Wallet Approval
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {allUsers.slice(0, 10).map((user) => (
-                  <div key={user.id} className="p-4 bg-slate-700/30 rounded-lg border border-slate-600/50">
+                  <div key={user.id} className="p-4 bg-white rounded-lg border border-gray-200">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <code className="text-blue-300 font-mono text-sm">
+                        <code className="text-blue-600 font-mono text-sm">
                           {user.wallet_address?.slice(0, 10)}...{user.wallet_address?.slice(-8)}
                         </code>
-                        <Badge variant="default">
-                          {user.role}
+                        <Badge className={`${
+                          user.kyc_status === 'approved' ? 'bg-green-600' :
+                          user.kyc_status === 'under_review' ? 'bg-orange-600' :
+                          user.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-gray-600'
+                        } text-white`}>
+                          {user.kyc_status?.toUpperCase() || 'PENDING'}
                         </Badge>
+                        {user.wallet_approved && (
+                          <Badge className="bg-blue-600 text-white">WALLET APPROVED</Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="text-sm text-slate-300 mb-3">
-                      User ID: {user.user_id?.slice(0, 8)}...
+                    <div className="text-sm text-gray-600 mb-3">
+                      User ID: {user.user_id?.slice(0, 8)}... | Country: {user.country_of_residence || 'Not set'}
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleUserAction(user.user_id, 'approved')}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle size={14} className="mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleUserAction(user.user_id, 'suspended')}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        <Pause size={14} className="mr-1" />
-                        Suspend
-                      </Button>
-                    </div>
+                    {user.kyc_status === 'approved' && !user.wallet_approved && (
+                      <div className="space-y-2">
+                        <Label className="text-gray-700">Approve wallet for token:</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveUser(user.user_id, 'eINR')}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            Approve eINR
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveUser(user.user_id, 'eUSD')}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Approve eUSD
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveUser(user.user_id, 'eAED')}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                          >
+                            Approve eAED
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -215,62 +331,64 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Compliance Tab */}
-      {activeTab === 'compliance' && (
+      {activeTab === 'kyc' && (
         <div className="space-y-6">
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-gray-50 border-gray-200">
             <CardHeader>
-              <CardTitle className="text-white">Recent Admin Actions</CardTitle>
+              <CardTitle className="text-gray-900">KYC Document Review</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {auditLogs.slice(0, 5).map((log) => (
-                  <div key={log.id} className="p-4 bg-blue-600/10 border border-blue-500/30 rounded-lg">
+                {kycDocuments.slice(0, 10).map((doc) => (
+                  <div key={doc.id} className="p-4 bg-white border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-white font-medium capitalize">
-                        {log.action.replace('_', ' ')}
-                      </span>
-                      <Badge className="bg-blue-600">
-                        Admin Action
+                      <div className="flex items-center gap-3">
+                        <FileText className="text-blue-600" size={20} />
+                        <div>
+                          <div className="text-gray-900 font-medium">{doc.document_type.replace(/_/g, ' ').toUpperCase()}</div>
+                          <div className="text-sm text-gray-600">
+                            User: {doc.profile?.user_id?.slice(0, 8)}... | {doc.file_name}
+                          </div>
+                        </div>
+                      </div>
+                      <Badge className={`${
+                        doc.status === 'approved' ? 'bg-green-600' :
+                        doc.status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
+                      } text-white`}>
+                        {doc.status.toUpperCase()}
                       </Badge>
                     </div>
-                    <div className="text-sm text-blue-300 mb-3">
-                      User: {log.user_id?.slice(0, 8)}...
+                    <div className="text-xs text-gray-500 mb-3">
+                      Uploaded: {new Date(doc.upload_date).toLocaleString()}
                     </div>
-                    <div className="text-xs text-slate-400">
-                      {new Date(log.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white">Failing Rules</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {failingRules.slice(0, 5).map((execution) => (
-                  <div key={execution.id} className="p-4 bg-red-600/10 border border-red-500/30 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white font-medium">
-                        {execution.rule?.name || 'Unknown Rule'}
-                      </span>
-                    </div>
-                    <div className="text-sm text-red-300 mb-3">
-                      Error: {execution.reason || 'Unknown error'}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">
-                        Failed: {new Date(execution.executed_at).toLocaleString()}
-                      </span>
-                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                        <Play size={14} className="mr-1" />
-                        Retry
-                      </Button>
-                    </div>
+                    {doc.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => downloadDocument(doc.file_path)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Download size={14} className="mr-1" />
+                          Download
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproveDocument(doc.id, doc.user_id)}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CheckCircle size={14} className="mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleRejectDocument(doc.id, 'Document rejected by admin')}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          <X size={14} className="mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -279,66 +397,65 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* System Controls Tab */}
       {activeTab === 'limits' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-gray-50 border-gray-200">
             <CardHeader>
-              <CardTitle className="text-white">System Limits</CardTitle>
+              <CardTitle className="text-gray-900">System Limits</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="mintLimit">Daily Mint Limit (₹)</Label>
+                <Label htmlFor="mintLimit" className="text-gray-700">Daily Mint Limit (₹)</Label>
                 <Input
                   id="mintLimit"
                   value={mintLimit}
                   onChange={(e) => setMintLimit(e.target.value)}
-                  className="bg-slate-700 border-slate-600"
+                  className="bg-white border-gray-300 text-gray-900"
                 />
               </div>
               <div>
-                <Label htmlFor="burnLimit">Daily Burn Limit (₹)</Label>
+                <Label htmlFor="burnLimit" className="text-gray-700">Daily Burn Limit (₹)</Label>
                 <Input
                   id="burnLimit"
                   value={burnLimit}
                   onChange={(e) => setBurnLimit(e.target.value)}
-                  className="bg-slate-700 border-slate-600"
+                  className="bg-white border-gray-300 text-gray-900"
                 />
               </div>
               <div>
-                <Label htmlFor="dailyLimit">User Daily Limit (₹)</Label>
+                <Label htmlFor="dailyLimit" className="text-gray-700">User Daily Limit (₹)</Label>
                 <Input
                   id="dailyLimit"
                   value={dailyLimit}
                   onChange={(e) => setDailyLimit(e.target.value)}
-                  className="bg-slate-700 border-slate-600"
+                  className="bg-white border-gray-300 text-gray-900"
                 />
               </div>
-              <Button onClick={updateSystemLimits} className="w-full bg-blue-600 hover:bg-blue-700">
+              <Button onClick={updateSystemLimits} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                 Update Limits
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-gray-50 border-gray-200">
             <CardHeader>
-              <CardTitle className="text-white">System Controls</CardTitle>
+              <CardTitle className="text-gray-900">System Controls</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Enable New Registrations</Label>
+                <Label className="text-gray-700">Enable New Registrations</Label>
                 <Switch checked={true} />
               </div>
               <div className="flex items-center justify-between">
-                <Label>Allow Cross-Border Transfers</Label>
+                <Label className="text-gray-700">Allow Cross-Border Transfers</Label>
                 <Switch checked={true} />
               </div>
               <div className="flex items-center justify-between">
-                <Label>Emergency Freeze Mode</Label>
+                <Label className="text-gray-700">Emergency Freeze Mode</Label>
                 <Switch checked={false} />
               </div>
               <div className="flex items-center justify-between">
-                <Label>Maintenance Mode</Label>
+                <Label className="text-gray-700">Maintenance Mode</Label>
                 <Switch checked={false} />
               </div>
             </CardContent>
