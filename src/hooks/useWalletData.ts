@@ -95,11 +95,12 @@ export const useWalletData = () => {
     enabled: !!user,
   });
 
+  // Removed exchange_rates as it doesn't exist in the schema, using fx_rates instead
   const { data: exchangeRates = [] } = useQuery({
-    queryKey: ['exchange-rates'],
+    queryKey: ['fx-rates'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('exchange_rates')
+        .from('fx_rates')
         .select('*')
         .order('timestamp', { ascending: false });
       

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Users, Settings, CheckCircle, X, Eye, FileText, Download } from 'lucide-react';
+import { Shield, Users, Settings, CheckCircle, X, FileText, Download } from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -20,22 +20,34 @@ const AdminDashboard = () => {
   const { allUsers, complianceEvents, auditLogs } = useAdminData();
 
   const [kycDocuments, setKycDocuments] = useState<any[]>([]);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchKycDocuments = async () => {
       const { data } = await supabase
         .from('kyc_documents')
         .select(`
           *,
-          profile:profiles(*)
+          profile:profiles!inner(user_id, kyc_status)
         `)
         .order('upload_date', { ascending: false });
       
       setKycDocuments(data || []);
     };
 
-    if (activeTab === 'kyc') {
+    const fetchAllTransactions = async () => {
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      
+      setAllTransactions(data || []);
+    };
+
+    if (activeTab === 'kyc' || activeTab === 'overview') {
       fetchKycDocuments();
+      fetchAllTransactions();
     }
   }, [activeTab]);
 
@@ -65,6 +77,7 @@ const AdminDashboard = () => {
       toast({
         title: "User Approved",
         description: `User has been approved for ${tokenSymbol} wallet.`,
+        className: "bg-blue-600 text-white border-blue-700",
       });
     } catch (error) {
       toast({
@@ -88,6 +101,7 @@ const AdminDashboard = () => {
       toast({
         title: "Document Approved",
         description: "KYC document has been approved.",
+        className: "bg-blue-600 text-white border-blue-700",
       });
     } catch (error) {
       toast({
@@ -112,6 +126,7 @@ const AdminDashboard = () => {
       toast({
         title: "Document Rejected",
         description: "KYC document has been rejected.",
+        className: "bg-blue-600 text-white border-blue-700",
       });
     } catch (error) {
       toast({
@@ -166,6 +181,7 @@ const AdminDashboard = () => {
       toast({
         title: "Limits Updated",
         description: "System limits have been updated successfully.",
+        className: "bg-blue-600 text-white border-blue-700",
       });
     } catch (error) {
       toast({
@@ -187,9 +203,11 @@ const AdminDashboard = () => {
   const pendingKyc = allUsers.filter(u => u.kyc_status === 'under_review').length;
   const approvedUsers = allUsers.filter(u => u.kyc_status === 'approved').length;
   const pendingDocuments = kycDocuments.filter(d => d.status === 'pending').length;
+  const totalTransactionVolume = allTransactions.reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const totalTransactions = allTransactions.length;
 
   return (
-    <div className="space-y-6 bg-white">
+    <div className="space-y-6 bg-white min-h-screen p-6">
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg backdrop-blur-sm overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -211,51 +229,77 @@ const AdminDashboard = () => {
       </div>
 
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-gray-50 border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="bg-white border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm">Total Users</p>
+                    <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
+                  </div>
+                  <Users className="text-blue-600" size={24} />
                 </div>
-                <Users className="text-blue-600" size={24} />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-gray-50 border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Approved Users</p>
-                  <p className="text-2xl font-bold text-green-600">{approvedUsers}</p>
+            <Card className="bg-white border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm">Approved Users</p>
+                    <p className="text-2xl font-bold text-green-600">{approvedUsers}</p>
+                  </div>
+                  <CheckCircle className="text-green-600" size={24} />
                 </div>
-                <CheckCircle className="text-green-600" size={24} />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-gray-50 border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Pending KYC</p>
-                  <p className="text-2xl font-bold text-orange-600">{pendingKyc}</p>
+            <Card className="bg-white border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm">Total Transactions</p>
+                    <p className="text-2xl font-bold text-blue-600">{totalTransactions}</p>
+                  </div>
+                  <Shield className="text-blue-600" size={24} />
                 </div>
-                <FileText className="text-orange-600" size={24} />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-gray-50 border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Pending Documents</p>
-                  <p className="text-2xl font-bold text-red-600">{pendingDocuments}</p>
+            <Card className="bg-white border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm">Transaction Volume</p>
+                    <p className="text-2xl font-bold text-purple-600">₹{totalTransactionVolume.toLocaleString()}</p>
+                  </div>
+                  <FileText className="text-purple-600" size={24} />
                 </div>
-                <Shield className="text-red-600" size={24} />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="bg-white border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-gray-900">Recent Compliance Events</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {complianceEvents.slice(0, 5).map((event, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="text-gray-900 font-medium">{event.event_type}</div>
+                      <div className="text-gray-600 text-sm">{event.description}</div>
+                    </div>
+                    <Badge className={`${
+                      event.severity === 'high' ? 'bg-red-600' :
+                      event.severity === 'medium' ? 'bg-yellow-600' : 'bg-green-600'
+                    } text-white`}>
+                      {event.severity}
+                    </Badge>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -264,7 +308,7 @@ const AdminDashboard = () => {
 
       {activeTab === 'users' && (
         <div className="space-y-6">
-          <Card className="bg-gray-50 border-gray-200">
+          <Card className="bg-white border-gray-200">
             <CardHeader>
               <CardTitle className="text-gray-900 flex items-center gap-2">
                 <Users size={20} />
@@ -274,7 +318,7 @@ const AdminDashboard = () => {
             <CardContent>
               <div className="space-y-4">
                 {allUsers.slice(0, 10).map((user) => (
-                  <div key={user.id} className="p-4 bg-white rounded-lg border border-gray-200">
+                  <div key={user.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <code className="text-blue-600 font-mono text-sm">
@@ -333,21 +377,21 @@ const AdminDashboard = () => {
 
       {activeTab === 'kyc' && (
         <div className="space-y-6">
-          <Card className="bg-gray-50 border-gray-200">
+          <Card className="bg-white border-gray-200">
             <CardHeader>
               <CardTitle className="text-gray-900">KYC Document Review</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {kycDocuments.slice(0, 10).map((doc) => (
-                  <div key={doc.id} className="p-4 bg-white border border-gray-200 rounded-lg">
+                {kycDocuments.map((doc) => (
+                  <div key={doc.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <FileText className="text-blue-600" size={20} />
                         <div>
                           <div className="text-gray-900 font-medium">{doc.document_type.replace(/_/g, ' ').toUpperCase()}</div>
                           <div className="text-sm text-gray-600">
-                            User: {doc.profile?.user_id?.slice(0, 8)}... | {doc.file_name}
+                            User: {doc.user_id?.slice(0, 8)}... | {doc.file_name}
                           </div>
                         </div>
                       </div>
@@ -391,6 +435,11 @@ const AdminDashboard = () => {
                     )}
                   </div>
                 ))}
+                {kycDocuments.length === 0 && (
+                  <div className="text-center py-8 text-gray-600">
+                    No KYC documents submitted yet.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -399,7 +448,7 @@ const AdminDashboard = () => {
 
       {activeTab === 'limits' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-gray-50 border-gray-200">
+          <Card className="bg-white border-gray-200">
             <CardHeader>
               <CardTitle className="text-gray-900">System Limits</CardTitle>
             </CardHeader>
@@ -437,7 +486,7 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-50 border-gray-200">
+          <Card className="bg-white border-gray-200">
             <CardHeader>
               <CardTitle className="text-gray-900">System Controls</CardTitle>
             </CardHeader>

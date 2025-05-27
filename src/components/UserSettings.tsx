@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { QrCode, Copy, Eye, EyeOff, Upload, Download, Shield, User, Wallet, Bell, CreditCard, Globe, Lock, Phone, Mail, FileText, Camera, MapPin } from 'lucide-react';
+import { QrCode, Copy, Upload, Shield, User, Wallet, Bell, CreditCard, Globe, Lock, FileText } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletData } from '@/hooks/useWalletData';
 import { useToast } from '@/hooks/use-toast';
@@ -17,9 +16,9 @@ const UserSettings = () => {
   const { user } = useAuth();
   const { profile } = useWalletData();
   const { toast } = useToast();
-  const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [kycStep, setKycStep] = useState(1);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [uploadedDocs, setUploadedDocs] = useState<{[key: string]: boolean}>({});
   const [kycData, setKycData] = useState({
     firstName: '',
     lastName: '',
@@ -65,6 +64,7 @@ const UserSettings = () => {
     toast({
       title: "Copied!",
       description: `${type} copied to clipboard`,
+      className: "bg-blue-600 text-white border-blue-700",
     });
   };
 
@@ -95,9 +95,12 @@ const UserSettings = () => {
 
       if (dbError) throw dbError;
 
+      setUploadedDocs(prev => ({ ...prev, [docType]: true }));
+
       toast({
         title: "Document Uploaded",
         description: "Your document has been uploaded and is being reviewed.",
+        className: "bg-blue-600 text-white border-blue-700",
       });
     } catch (error: any) {
       toast({
@@ -138,6 +141,7 @@ const UserSettings = () => {
       toast({
         title: "KYC Submitted",
         description: "Your KYC information has been submitted for review. You'll be notified once approved.",
+        className: "bg-blue-600 text-white border-blue-700",
       });
     } catch (error: any) {
       toast({
@@ -149,8 +153,8 @@ const UserSettings = () => {
   };
 
   return (
-    <div className="space-y-6 bg-white">
-      <Card className="bg-gray-50 border-gray-200">
+    <div className="space-y-6 bg-white min-h-screen">
+      <Card className="bg-white border-gray-200">
         <CardHeader>
           <CardTitle className="text-gray-900 flex items-center gap-2">
             <User className="text-blue-600" size={24} />
@@ -472,6 +476,9 @@ const UserSettings = () => {
                                   <div className="flex items-center gap-3">
                                     <FileText className="text-blue-600" size={20} />
                                     <span className="text-gray-900">{doc}</span>
+                                    {uploadedDocs[doc.toLowerCase().replace(/\s+/g, '_')] && (
+                                      <Badge className="bg-green-600 text-white">Uploaded</Badge>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <input
@@ -498,10 +505,14 @@ const UserSettings = () => {
                                       size="sm" 
                                       onClick={() => document.getElementById(`file-${index}`)?.click()}
                                       disabled={uploadingDoc === doc.toLowerCase().replace(/\s+/g, '_')}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                                      className={uploadedDocs[doc.toLowerCase().replace(/\s+/g, '_')] 
+                                        ? "bg-green-600 hover:bg-green-700 text-white" 
+                                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                                      }
                                     >
                                       <Upload size={16} className="mr-1" />
-                                      {uploadingDoc === doc.toLowerCase().replace(/\s+/g, '_') ? 'Uploading...' : 'Upload PDF'}
+                                      {uploadingDoc === doc.toLowerCase().replace(/\s+/g, '_') ? 'Uploading...' : 
+                                       uploadedDocs[doc.toLowerCase().replace(/\s+/g, '_')] ? 'Uploaded' : 'Upload PDF'}
                                     </Button>
                                   </div>
                                 </div>
