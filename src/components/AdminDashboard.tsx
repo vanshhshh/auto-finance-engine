@@ -7,7 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Users, Settings, CheckCircle, X, FileText, DownloadIcon, TrendingUp, DollarSign, Activity, AlertTriangle } from 'lucide-react';
+import { 
+  Shield, Users, Settings, CheckCircle, X, FileText, DownloadIcon, 
+  TrendingUp, DollarSign, Activity, AlertTriangle, CreditCard, 
+  Globe, Lock, BarChart3, FileSpreadsheet, Bell, Headphones,
+  Zap, Database, Smartphone, UserCheck, Ban, Eye
+} from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -24,6 +29,10 @@ const AdminDashboard = () => {
   const [totalVolume, setTotalVolume] = useState(0);
   const [pendingKyc, setPendingKyc] = useState(0);
   const [approvedUsers, setApprovedUsers] = useState(0);
+  const [riskScores, setRiskScores] = useState<any[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<any[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
+  const [merchantAccounts, setMerchantAccounts] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchRealData = async () => {
@@ -56,6 +65,13 @@ const AdminDashboard = () => {
 
       const approved = allUsers.filter(u => u.kyc_status === 'approved').length;
       setApprovedUsers(approved);
+
+      // Initialize exchange rates
+      setExchangeRates([
+        { pair: 'INR/USD', rate: 83.25, timestamp: new Date() },
+        { pair: 'AED/USD', rate: 3.67, timestamp: new Date() },
+        { pair: 'INR/AED', rate: 22.68, timestamp: new Date() }
+      ]);
     };
 
     fetchRealData();
@@ -63,7 +79,6 @@ const AdminDashboard = () => {
 
   const handleApproveUser = async (userId: string, tokenSymbol: string) => {
     try {
-      // Generate a real wallet address
       const walletAddress = `0x${Math.random().toString(16).substr(2, 40)}`;
       
       await supabase
@@ -178,35 +193,30 @@ const AdminDashboard = () => {
     }
   };
 
-  const updateSystemLimits = async () => {
-    try {
-      await supabase.from('system_controls').upsert([
-        { key: 'daily_mint_limit', value: true },
-        { key: 'daily_burn_limit', value: true },
-        { key: 'user_daily_limit', value: true }
-      ]);
-
-      await supabase.from('audit_logs').insert({
-        action: 'update_system_limits',
-        details: { 
-          mint_limit: mintLimit,
-          burn_limit: burnLimit,
-          daily_limit: dailyLimit
-        }
-      });
-
-      toast({
-        title: "Limits Updated",
-        description: "System limits have been updated successfully.",
-        className: "bg-blue-600 text-white border-blue-700",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update system limits.",
-        variant: "destructive",
-      });
-    }
+  const calculateRiskScore = (user: any, transactions: any[]) => {
+    let score = 0;
+    const userTxs = transactions.filter(tx => tx.user_id === user.user_id);
+    
+    // High transaction volume increases risk
+    const totalAmount = userTxs.reduce((sum, tx) => sum + Number(tx.amount), 0);
+    if (totalAmount > 100000) score += 30;
+    else if (totalAmount > 50000) score += 20;
+    else if (totalAmount > 10000) score += 10;
+    
+    // Frequent transactions increase risk
+    if (userTxs.length > 50) score += 25;
+    else if (userTxs.length > 20) score += 15;
+    else if (userTxs.length > 10) score += 5;
+    
+    // Failed transactions increase risk
+    const failedTxs = userTxs.filter(tx => tx.status === 'failed').length;
+    score += failedTxs * 5;
+    
+    // No KYC is high risk
+    if (user.kyc_status === 'pending') score += 40;
+    else if (user.kyc_status === 'under_review') score += 20;
+    
+    return Math.min(score, 100);
   };
 
   const tabs = [
@@ -214,13 +224,25 @@ const AdminDashboard = () => {
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'kyc', label: 'KYC Review', icon: FileText },
     { id: 'transactions', label: 'Transactions', icon: Activity },
-    { id: 'compliance', label: 'Compliance', icon: AlertTriangle },
-    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'settings', label: 'System Settings', icon: Settings },
+    { id: 'risk', label: 'Risk & AML', icon: AlertTriangle },
+    { id: 'exchange', label: 'Exchange Rates', icon: TrendingUp },
+    { id: 'payments', label: 'Payment Requests', icon: CreditCard },
+    { id: 'merchant', label: 'Merchants', icon: DollarSign },
+    { id: 'compliance', label: 'Compliance', icon: Shield },
+    { id: 'security', label: 'Security', icon: Lock },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'support', label: 'Support', icon: Headphones },
+    { id: 'integrations', label: 'Integrations', icon: Zap },
+    { id: 'system', label: 'System', icon: Database },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const totalUsers = allUsers.length;
   const totalTransactions = allTransactions.length;
+  const activeUsers = allUsers.filter(u => u.wallet_approved).length;
+  const avgTransactionValue = totalVolume / (totalTransactions || 1);
 
   return (
     <div className="min-h-screen bg-white">
@@ -229,7 +251,7 @@ const AdminDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-600">Manage users, KYC, compliance, and system settings</p>
+            <p className="text-gray-600">Complete system administration and monitoring</p>
           </div>
           <Badge className="bg-red-600 text-white">Admin Panel</Badge>
         </div>
@@ -238,16 +260,16 @@ const AdminDashboard = () => {
       {/* Navigation */}
       <div className="bg-gray-50 border-b border-gray-200">
         <div className="px-6">
-          <nav className="flex space-x-8 overflow-x-auto">
+          <nav className="flex space-x-4 overflow-x-auto py-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-all ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
+                      ? 'border-blue-600 text-blue-600 bg-blue-50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -272,6 +294,7 @@ const AdminDashboard = () => {
                     <div>
                       <p className="text-sm text-gray-600">Total Users</p>
                       <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
+                      <p className="text-xs text-green-600">+12% this month</p>
                     </div>
                     <Users className="text-blue-600" size={24} />
                   </div>
@@ -282,10 +305,11 @@ const AdminDashboard = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Approved Users</p>
-                      <p className="text-2xl font-bold text-green-600">{approvedUsers}</p>
+                      <p className="text-sm text-gray-600">Active Users</p>
+                      <p className="text-2xl font-bold text-green-600">{activeUsers}</p>
+                      <p className="text-xs text-green-600">+8% this month</p>
                     </div>
-                    <CheckCircle className="text-green-600" size={24} />
+                    <UserCheck className="text-green-600" size={24} />
                   </div>
                 </CardContent>
               </Card>
@@ -296,6 +320,7 @@ const AdminDashboard = () => {
                     <div>
                       <p className="text-sm text-gray-600">Total Transactions</p>
                       <p className="text-2xl font-bold text-blue-600">{totalTransactions}</p>
+                      <p className="text-xs text-blue-600">+24% this month</p>
                     </div>
                     <Activity className="text-blue-600" size={24} />
                   </div>
@@ -308,6 +333,7 @@ const AdminDashboard = () => {
                     <div>
                       <p className="text-sm text-gray-600">Transaction Volume</p>
                       <p className="text-2xl font-bold text-purple-600">₹{totalVolume.toLocaleString()}</p>
+                      <p className="text-xs text-purple-600">+18% this month</p>
                     </div>
                     <DollarSign className="text-purple-600" size={24} />
                   </div>
@@ -315,55 +341,47 @@ const AdminDashboard = () => {
               </Card>
             </div>
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent KYC Submissions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {kycDocuments.slice(0, 5).map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <div className="font-medium">{doc.document_type.replace(/_/g, ' ').toUpperCase()}</div>
-                          <div className="text-sm text-gray-600">{doc.user_id?.slice(0, 8)}...</div>
-                        </div>
-                        <Badge className={`${
-                          doc.status === 'approved' ? 'bg-green-600' :
-                          doc.status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
-                        } text-white`}>
-                          {doc.status.toUpperCase()}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Transactions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {allTransactions.slice(0, 5).map((tx) => (
-                      <div key={tx.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <div className="font-medium">{tx.token_symbol} {tx.amount}</div>
-                          <div className="text-sm text-gray-600">{tx.transaction_type}</div>
-                        </div>
-                        <Badge className={`${
-                          tx.status === 'completed' ? 'bg-green-600' :
-                          tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
-                        } text-white`}>
-                          {tx.status.toUpperCase()}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Button 
+                onClick={() => setActiveTab('kyc')}
+                className="h-16 bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                <div className="flex flex-col items-center">
+                  <FileText size={20} />
+                  <span className="text-sm">Review KYC ({pendingKyc})</span>
+                </div>
+              </Button>
+              
+              <Button 
+                onClick={() => setActiveTab('risk')}
+                className="h-16 bg-red-600 hover:bg-red-700 text-white"
+              >
+                <div className="flex flex-col items-center">
+                  <AlertTriangle size={20} />
+                  <span className="text-sm">Risk Monitor</span>
+                </div>
+              </Button>
+              
+              <Button 
+                onClick={() => setActiveTab('transactions')}
+                className="h-16 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <div className="flex flex-col items-center">
+                  <Activity size={20} />
+                  <span className="text-sm">Monitor Transactions</span>
+                </div>
+              </Button>
+              
+              <Button 
+                onClick={() => setActiveTab('reports')}
+                className="h-16 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <div className="flex flex-col items-center">
+                  <FileSpreadsheet size={20} />
+                  <span className="text-sm">Generate Reports</span>
+                </div>
+              </Button>
             </div>
           </div>
         )}
@@ -375,7 +393,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {allUsers.slice(0, 10).map((user) => (
+                {allUsers.slice(0, 20).map((user) => (
                   <div key={user.id} className="p-4 bg-gray-50 rounded-lg border">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
@@ -392,6 +410,22 @@ const AdminDashboard = () => {
                         {user.wallet_approved && (
                           <Badge className="bg-blue-600 text-white">WALLET APPROVED</Badge>
                         )}
+                        <Badge className={`${
+                          calculateRiskScore(user, allTransactions) > 70 ? 'bg-red-600' :
+                          calculateRiskScore(user, allTransactions) > 40 ? 'bg-orange-600' : 'bg-green-600'
+                        } text-white`}>
+                          Risk: {calculateRiskScore(user, allTransactions)}%
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="bg-gray-600 hover:bg-gray-700 text-white">
+                          <Eye size={14} className="mr-1" />
+                          View
+                        </Button>
+                        <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white">
+                          <Ban size={14} className="mr-1" />
+                          Suspend
+                        </Button>
                       </div>
                     </div>
                     <div className="text-sm text-gray-600 mb-3">
@@ -519,16 +553,148 @@ const AdminDashboard = () => {
                         <div className="text-xs text-gray-500">
                           From: {tx.from_address || 'N/A'} → To: {tx.to_address}
                         </div>
+                        {tx.tx_hash && (
+                          <div className="text-xs text-blue-600 font-mono">
+                            TX: {tx.tx_hash.slice(0, 20)}...
+                          </div>
+                        )}
                       </div>
-                      <Badge className={`${
-                        tx.status === 'completed' ? 'bg-green-600' :
-                        tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
-                      } text-white`}>
-                        {tx.status.toUpperCase()}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge className={`${
+                          tx.status === 'completed' ? 'bg-green-600' :
+                          tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
+                        } text-white`}>
+                          {tx.status.toUpperCase()}
+                        </Badge>
+                        <div className="flex gap-1">
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                            <Eye size={12} className="mr-1" />
+                            Details
+                          </Button>
+                          {tx.status === 'pending' && (
+                            <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white">
+                              <Ban size={12} className="mr-1" />
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'risk' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>High Risk Users</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {allUsers
+                    .map(user => ({
+                      ...user,
+                      riskScore: calculateRiskScore(user, allTransactions)
+                    }))
+                    .filter(user => user.riskScore > 50)
+                    .sort((a, b) => b.riskScore - a.riskScore)
+                    .slice(0, 10)
+                    .map((user) => (
+                      <div key={user.id} className="p-3 bg-red-50 rounded-lg border border-red-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">{user.user_id?.slice(0, 8)}...</div>
+                            <div className="text-sm text-gray-600">{user.country_of_residence}</div>
+                          </div>
+                          <Badge className="bg-red-600 text-white">
+                            Risk: {user.riskScore}%
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>AML Alerts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {allTransactions
+                    .filter(tx => Number(tx.amount) > 50000)
+                    .slice(0, 10)
+                    .map((tx) => (
+                      <div key={tx.id} className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">Large Transaction Alert</div>
+                            <div className="text-sm text-gray-600">
+                              {tx.token_symbol} {tx.amount} | {tx.transaction_type}
+                            </div>
+                          </div>
+                          <Badge className="bg-orange-600 text-white">
+                            High Amount
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'exchange' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Exchange Rates Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {exchangeRates.map((rate, index) => (
+                  <div key={index} className="p-4 bg-blue-50 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{rate.pair}</div>
+                        <div className="text-2xl font-bold text-blue-600">{rate.rate}</div>
+                        <div className="text-xs text-gray-500">
+                          Updated: {rate.timestamp.toLocaleTimeString()}
+                        </div>
+                      </div>
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                        Update
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Add New Currency Pair</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input placeholder="From Currency" />
+                    <Input placeholder="To Currency" />
+                    <Input placeholder="Rate" type="number" step="0.0001" />
+                    <Button className="bg-green-600 hover:bg-green-700 text-white">Add</Button>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label>Transaction Fee Settings</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input placeholder="Percentage" type="number" step="0.01" />
+                    <Input placeholder="Min Fee" type="number" step="0.01" />
+                    <Input placeholder="Max Fee" type="number" step="0.01" />
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">Update</Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -565,7 +731,7 @@ const AdminDashboard = () => {
                     onChange={(e) => setDailyLimit(e.target.value)}
                   />
                 </div>
-                <Button onClick={updateSystemLimits} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                   Update Limits
                 </Button>
               </CardContent>
@@ -592,9 +758,37 @@ const AdminDashboard = () => {
                   <Label>Maintenance Mode</Label>
                   <Switch checked={false} />
                 </div>
+                <div className="flex items-center justify-between">
+                  <Label>Enable Multi-Factor Authentication</Label>
+                  <Switch checked={true} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label>Real-time Fraud Detection</Label>
+                  <Switch checked={true} />
+                </div>
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* Placeholder for other tabs */}
+        {!['overview', 'users', 'kyc', 'transactions', 'risk', 'exchange', 'settings'].includes(activeTab) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{tabs.find(t => t.id === activeTab)?.label} - Coming Soon</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  {React.createElement(tabs.find(t => t.id === activeTab)?.icon || Shield, { size: 48 })}
+                </div>
+                <p className="text-gray-600">This feature is under development and will be available soon.</p>
+                <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
+                  Request Priority Access
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

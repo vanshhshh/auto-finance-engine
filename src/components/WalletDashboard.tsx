@@ -3,7 +3,10 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Download, Activity, Settings, LogOut, Shield, Building, AlertCircle } from 'lucide-react';
+import { 
+  Wallet, Send, Download, Activity, Settings, LogOut, Shield, Building, 
+  AlertCircle, QrCode, CreditCard, TrendingUp, Users, Globe, Smartphone
+} from 'lucide-react';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
 import ActivityLog from './ActivityLog';
@@ -12,6 +15,10 @@ import ComplianceMonitor from './ComplianceMonitor';
 import NotificationCenter from './NotificationCenter';
 import AdminDashboard from './AdminDashboard';
 import UserSettings from './UserSettings';
+import QRPaymentSystem from './QRPaymentSystem';
+import MultiFactorAuth from './MultiFactorAuth';
+import ExchangeRateManager from './ExchangeRateManager';
+import MerchantDashboard from './MerchantDashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletData } from '@/hooks/useWalletData';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
@@ -27,14 +34,21 @@ const WalletDashboard = () => {
   useRealTimeData();
 
   const isAdmin = user?.email?.includes('admin') || false;
+  const isMerchant = profile?.organization?.type === 'merchant' || profile?.role === 'merchant';
 
   const tabs = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'activity', label: 'Activity', icon: Activity },
+    { id: 'qr-pay', label: 'QR Payments', icon: QrCode },
+    { id: 'exchange', label: 'Exchange', icon: TrendingUp },
+    ...(isMerchant ? [
+      { id: 'merchant', label: 'Merchant', icon: CreditCard }
+    ] : []),
+    { id: 'security', label: 'Security', icon: Shield },
     ...(isAdmin ? [
       { id: 'analytics', label: 'Analytics', icon: AnalyticsDashboard },
       { id: 'compliance', label: 'Compliance', icon: Shield },
-      { id: 'admin', label: 'Admin', icon: AdminDashboard }
+      { id: 'admin', label: 'Admin', icon: Users }
     ] : []),
   ];
 
@@ -102,6 +116,11 @@ const WalletDashboard = () => {
             {isAdmin && (
               <Badge className="bg-red-600 px-3 py-1 text-white">
                 Admin
+              </Badge>
+            )}
+            {isMerchant && (
+              <Badge className="bg-purple-600 px-3 py-1 text-white">
+                Merchant
               </Badge>
             )}
             {profile?.organization && (
@@ -229,7 +248,7 @@ const WalletDashboard = () => {
               <CardTitle className="text-gray-900">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Button
                   onClick={handleSendClick}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -245,8 +264,15 @@ const WalletDashboard = () => {
                   Receive
                 </Button>
                 <Button
-                  onClick={handleAddCBDC}
+                  onClick={() => setActiveTab('qr-pay')}
                   className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <QrCode size={18} className="mr-2" />
+                  QR Pay
+                </Button>
+                <Button
+                  onClick={handleAddCBDC}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
                 >
                   Add CBDC
                 </Button>
@@ -257,6 +283,10 @@ const WalletDashboard = () => {
       )}
 
       {activeTab === 'activity' && <ActivityLog />}
+      {activeTab === 'qr-pay' && <QRPaymentSystem />}
+      {activeTab === 'exchange' && <ExchangeRateManager />}
+      {activeTab === 'merchant' && isMerchant && <MerchantDashboard />}
+      {activeTab === 'security' && <MultiFactorAuth />}
       {activeTab === 'analytics' && isAdmin && <AnalyticsDashboard />}
       {activeTab === 'compliance' && isAdmin && <ComplianceMonitor />}
       {activeTab === 'admin' && isAdmin && <AdminDashboard />}
