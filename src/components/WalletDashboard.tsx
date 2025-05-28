@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,8 +31,8 @@ const WalletDashboard = () => {
   const totalBalance = balances.reduce((sum, balance) => {
     // Convert to USD for display (simplified conversion)
     const usdValue = balance.token_symbol === 'eUSD' ? balance.balance : 
-                     balance.token_symbol === 'eINR' ? balance.balance * 0.012 :
-                     balance.token_symbol === 'eAED' ? balance.balance * 0.27 : 0;
+                     balance.token_symbol === 'eINR' ? Number(balance.balance) * 0.012 :
+                     balance.token_symbol === 'eAED' ? Number(balance.balance) * 0.27 : 0;
     return sum + usdValue;
   }, 0);
 

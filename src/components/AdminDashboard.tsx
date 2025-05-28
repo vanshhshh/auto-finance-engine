@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -287,6 +286,37 @@ const AdminDashboard = () => {
                             } text-white`}>
                               {event.resolved ? 'RESOLVED' : 'OPEN'}
                             </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Audit Logs */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Audit Logs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {auditLogs.slice(0, 10).map((log) => (
+                    <div key={log.id} className="p-4 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{log.action}</div>
+                          <div className="text-sm text-gray-600">
+                            User: {log.user_id ? log.user_id.slice(0, 8) + '...' : 'System'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(log.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-600">
+                            {log.ip_address && `IP: ${log.ip_address}`}
                           </div>
                         </div>
                       </div>
