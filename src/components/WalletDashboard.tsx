@@ -3,8 +3,10 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Receipt, History, QrCode, CreditCard, TrendingUp, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Wallet, Send, Receipt, QrCode, CreditCard, ArrowUpRight, ArrowDownLeft, LogOut } from 'lucide-react';
 import { useWalletData } from '@/hooks/useWalletData';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
 import QRPaymentSystem from './QRPaymentSystem';
@@ -14,7 +16,10 @@ import UserSettings from './UserSettings';
 const WalletDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [transactionType, setTransactionType] = useState<'send' | 'receive'>('send');
   const { balances, transactions, notifications } = useWalletData();
+  const { signOut } = useAuth();
+  const { toast } = useToast();
 
   const tabs = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
@@ -34,6 +39,20 @@ const WalletDashboard = () => {
 
   const recentTransactions = transactions.slice(0, 5);
 
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Signed Out",
+      description: "You have been successfully signed out.",
+      className: "bg-green-600 text-white border-green-700",
+    });
+  };
+
+  const openTransactionModal = (type: 'send' | 'receive') => {
+    setTransactionType(type);
+    setShowTransactionModal(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -43,9 +62,19 @@ const WalletDashboard = () => {
             <h1 className="text-2xl font-bold text-gray-900">My Wallet</h1>
             <p className="text-gray-600">Manage your digital assets and transactions</p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-600">Total Portfolio Value</p>
-            <p className="text-2xl font-bold text-green-600">${totalBalance.toFixed(2)}</p>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm text-gray-600">Total Portfolio Value</p>
+              <p className="text-2xl font-bold text-green-600">${totalBalance.toFixed(2)}</p>
+            </div>
+            <Button
+              onClick={handleSignOut}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </Button>
           </div>
         </div>
       </div>
@@ -82,7 +111,7 @@ const WalletDashboard = () => {
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Button 
-                onClick={() => setShowTransactionModal(true)}
+                onClick={() => openTransactionModal('send')}
                 className="p-6 h-auto flex-col bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Send className="mb-2" size={24} />
@@ -90,6 +119,7 @@ const WalletDashboard = () => {
               </Button>
               
               <Button 
+                onClick={() => openTransactionModal('receive')}
                 variant="outline"
                 className="p-6 h-auto flex-col border-green-600 text-green-600 hover:bg-green-50"
               >
@@ -98,6 +128,7 @@ const WalletDashboard = () => {
               </Button>
               
               <Button 
+                onClick={() => setActiveTab('qr-payments')}
                 variant="outline"
                 className="p-6 h-auto flex-col border-purple-600 text-purple-600 hover:bg-purple-50"
               >
@@ -225,7 +256,7 @@ const WalletDashboard = () => {
                 ))}
                 {transactions.length === 0 && (
                   <div className="text-center py-12 text-gray-600">
-                    <History size={48} className="mx-auto mb-4 text-gray-400" />
+                    <Receipt size={48} className="mx-auto mb-4 text-gray-400" />
                     <p>No transaction history</p>
                     <p className="text-sm">Your completed transactions will appear here</p>
                   </div>
@@ -242,7 +273,11 @@ const WalletDashboard = () => {
 
       {/* Transaction Modal */}
       {showTransactionModal && (
-        <TransactionModal onClose={() => setShowTransactionModal(false)} />
+        <TransactionModal 
+          type={transactionType}
+          isOpen={showTransactionModal}
+          onClose={() => setShowTransactionModal(false)} 
+        />
       )}
     </div>
   );

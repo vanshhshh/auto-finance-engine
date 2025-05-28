@@ -1,159 +1,121 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Store, CreditCard, BarChart3, Settings, QrCode, Receipt, Globe, Smartphone } from 'lucide-react';
+import { Store, QrCode, Receipt, Settings, TrendingUp, Users, CreditCard, LogOut, FileText, Shield, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWalletData } from '@/hooks/useWalletData';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 
 const MerchantDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [merchantData, setMerchantData] = useState<any>({
-    businessName: '',
-    businessType: '',
+  const [businessInfo, setBusinessInfo] = useState({
+    business_name: '',
+    business_type: '',
     address: '',
     phone: '',
-    email: '',
     website: '',
-    status: 'pending'
   });
-  const [paymentMethods, setPaymentMethods] = useState({
-    qr: true,
-    nfc: false,
-    online: true,
-    pos: false
-  });
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const { user } = useAuth();
+  const [kycStatus, setKycStatus] = useState('pending');
+  const { user, signOut } = useAuth();
+  const { profile, balances, transactions } = useWalletData();
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchMerchantData();
-    fetchMerchantTransactions();
-  }, []);
-
-  const fetchMerchantData = async () => {
-    try {
-      // Use profiles table instead of merchant_profiles for now
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (data) {
-        setMerchantData({
-          businessName: 'Demo Business',
-          businessType: 'retail',
-          address: '123 Business Street',
-          phone: '+1234567890',
-          email: user?.email || '',
-          website: 'https://demo-business.com',
-          status: 'approved'
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching merchant data:', error);
-    }
-  };
-
-  const fetchMerchantTransactions = async () => {
-    try {
-      const { data } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (data) {
-        setTransactions(data);
-        const revenue = data
-          .filter(tx => tx.status === 'completed')
-          .reduce((sum, tx) => sum + Number(tx.amount), 0);
-        setTotalRevenue(revenue);
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    }
-  };
-
-  const updateMerchantProfile = async () => {
-    try {
-      toast({
-        title: "Profile Updated",
-        description: "Merchant profile has been updated successfully.",
-        className: "bg-blue-600 text-white border-blue-700",
-      });
-    } catch (error) {
-      toast({
-        title: "Update Failed",
-        description: "Failed to update merchant profile.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const generatePaymentLink = async (amount: number, description: string) => {
-    try {
-      const paymentUrl = `https://gatefi.app/pay/${Math.random().toString(36).substring(7)}`;
-      navigator.clipboard.writeText(paymentUrl);
-
-      toast({
-        title: "Payment Link Generated",
-        description: "Payment link copied to clipboard.",
-        className: "bg-blue-600 text-white border-blue-700",
-      });
-    } catch (error) {
-      toast({
-        title: "Generation Failed",
-        description: "Failed to generate payment link.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'profile', label: 'Business Profile', icon: Store },
-    { id: 'payments', label: 'Payment Methods', icon: CreditCard },
+    { id: 'overview', label: 'Overview', icon: Store },
+    { id: 'kyc', label: 'KYC Verification', icon: Shield },
+    { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'qr-codes', label: 'QR Codes', icon: QrCode },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
-    { id: 'tools', label: 'Payment Tools', icon: QrCode },
+    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  const todayTransactions = transactions.filter(tx => 
-    new Date(tx.created_at).toDateString() === new Date().toDateString()
-  );
-  const todayRevenue = todayTransactions
-    .filter(tx => tx.status === 'completed')
-    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Signed Out",
+      description: "You have been successfully signed out.",
+      className: "bg-green-600 text-white border-green-700",
+    });
+  };
+
+  const handleKycSubmission = async () => {
+    if (!user) return;
+
+    try {
+      // Create merchant profile
+      const { error: profileError } = await supabase
+        .from('merchant_profiles')
+        .upsert({
+          user_id: user.id,
+          ...businessInfo,
+          status: 'under_review'
+        });
+
+      if (profileError) throw profileError;
+
+      // Update profile KYC status
+      const { error: kycError } = await supabase
+        .from('profiles')
+        .update({ 
+          kyc_status: 'under_review',
+          kyc_documents_uploaded: true 
+        })
+        .eq('user_id', user.id);
+
+      if (kycError) throw kycError;
+
+      setKycStatus('under_review');
+      
+      toast({
+        title: "KYC Submitted",
+        description: "Your KYC application has been submitted for review.",
+        className: "bg-blue-600 text-white border-blue-700",
+      });
+    } catch (error) {
+      toast({
+        title: "Submission Failed",
+        description: "Failed to submit KYC application. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Check if merchant can access wallet features
+  const canAccessWallet = profile?.kyc_status === 'approved' && profile?.wallet_approved;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Merchant Dashboard</h1>
-            <p className="text-gray-600">Manage your business payments and analytics</p>
+            <p className="text-gray-600">Manage your business payments and transactions</p>
           </div>
-          <Badge className={`${
-            merchantData.status === 'approved' ? 'bg-green-600' :
-            merchantData.status === 'under_review' ? 'bg-orange-600' : 'bg-gray-600'
-          } text-white`}>
-            {merchantData.status?.toUpperCase() || 'PENDING'}
-          </Badge>
+          <div className="flex items-center gap-4">
+            <Badge className="bg-purple-600 text-white">
+              MERCHANT ACCESS
+            </Badge>
+            <Button
+              onClick={handleSignOut}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <div className="bg-gray-50 border-b border-gray-200">
+      <div className="bg-white border-b border-gray-200">
         <div className="px-6">
           <nav className="flex space-x-4 overflow-x-auto py-2">
             {tabs.map((tab) => {
@@ -164,7 +126,7 @@ const MerchantDashboard = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-all ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600 bg-blue-50'
+                      ? 'border-purple-600 text-purple-600 bg-purple-50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -179,32 +141,34 @@ const MerchantDashboard = () => {
 
       {/* Content */}
       <div className="p-6">
+        {/* KYC Warning Banner */}
+        {!canAccessWallet && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="text-yellow-600" size={20} />
+              <div>
+                <h3 className="font-medium text-yellow-800">KYC Verification Required</h3>
+                <p className="text-sm text-yellow-700">
+                  Complete KYC verification to access wallet features and start processing payments.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Key Metrics */}
+            {/* Business Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Total Revenue</p>
-                      <p className="text-2xl font-bold text-green-600">₹{totalRevenue.toLocaleString()}</p>
-                      <p className="text-xs text-green-600">All time</p>
-                    </div>
-                    <BarChart3 className="text-green-600" size={24} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
                       <p className="text-sm text-gray-600">Today's Revenue</p>
-                      <p className="text-2xl font-bold text-blue-600">₹{todayRevenue.toLocaleString()}</p>
-                      <p className="text-xs text-blue-600">Last 24 hours</p>
+                      <p className="text-2xl font-bold text-green-600">$1,247</p>
+                      <p className="text-xs text-green-600">+12% from yesterday</p>
                     </div>
-                    <CreditCard className="text-blue-600" size={24} />
+                    <TrendingUp className="text-green-600" size={24} />
                   </div>
                 </CardContent>
               </Card>
@@ -214,10 +178,10 @@ const MerchantDashboard = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Total Transactions</p>
-                      <p className="text-2xl font-bold text-purple-600">{transactions.length}</p>
-                      <p className="text-xs text-purple-600">All time</p>
+                      <p className="text-2xl font-bold text-blue-600">{transactions.length}</p>
+                      <p className="text-xs text-blue-600">This month</p>
                     </div>
-                    <Receipt className="text-purple-600" size={24} />
+                    <Receipt className="text-blue-600" size={24} />
                   </div>
                 </CardContent>
               </Card>
@@ -226,326 +190,298 @@ const MerchantDashboard = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Success Rate</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {transactions.length > 0 ? 
-                          Math.round((transactions.filter(tx => tx.status === 'completed').length / transactions.length) * 100) : 0}%
-                      </p>
-                      <p className="text-xs text-green-600">Transaction success</p>
+                      <p className="text-sm text-gray-600">Active Customers</p>
+                      <p className="text-2xl font-bold text-purple-600">847</p>
+                      <p className="text-xs text-purple-600">+8% this month</p>
                     </div>
-                    <BarChart3 className="text-green-600" size={24} />
+                    <Users className="text-purple-600" size={24} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Wallet Balance</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        ${balances.reduce((sum, b) => sum + b.balance * (b.token_symbol === 'eUSD' ? 1 : 0.012), 0).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-orange-600">Available</p>
+                    </div>
+                    <CreditCard className="text-orange-600" size={24} />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Recent Transactions */}
+            {/* Quick Actions */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Transactions</CardTitle>
+                <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {transactions.slice(0, 10).map((tx) => (
-                    <div key={tx.id} className="p-3 bg-gray-50 rounded-lg border">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">{tx.token_symbol} {tx.amount}</div>
-                          <div className="text-sm text-gray-600">
-                            {tx.transaction_type} | {new Date(tx.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                        <Badge className={`${
-                          tx.status === 'completed' ? 'bg-green-600' :
-                          tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
-                        } text-white`}>
-                          {tx.status.toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                  {transactions.length === 0 && (
-                    <div className="text-center py-8 text-gray-600">
-                      No transactions yet. Start accepting payments to see them here.
-                    </div>
-                  )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button 
+                    className="p-6 h-auto flex-col bg-purple-600 hover:bg-purple-700 text-white"
+                    disabled={!canAccessWallet}
+                  >
+                    <QrCode className="mb-2" size={24} />
+                    <span>Generate QR Code</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline"
+                    className="p-6 h-auto flex-col border-blue-600 text-blue-600 hover:bg-blue-50"
+                    disabled={!canAccessWallet}
+                  >
+                    <Receipt className="mb-2" size={24} />
+                    <span>Create Invoice</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline"
+                    className="p-6 h-auto flex-col border-green-600 text-green-600 hover:bg-green-50"
+                    disabled={!canAccessWallet}
+                  >
+                    <TrendingUp className="mb-2" size={24} />
+                    <span>View Analytics</span>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           </div>
         )}
 
-        {activeTab === 'profile' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Profile</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="businessName">Business Name</Label>
-                  <Input
-                    id="businessName"
-                    value={merchantData.businessName}
-                    onChange={(e) => setMerchantData(prev => ({ ...prev, businessName: e.target.value }))}
-                    placeholder="Your Business Name"
-                  />
+        {activeTab === 'kyc' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Business Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="business_name">Business Name *</Label>
+                    <Input
+                      id="business_name"
+                      value={businessInfo.business_name}
+                      onChange={(e) => setBusinessInfo({...businessInfo, business_name: e.target.value})}
+                      placeholder="Enter your business name"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="business_type">Business Type *</Label>
+                    <Input
+                      id="business_type"
+                      value={businessInfo.business_type}
+                      onChange={(e) => setBusinessInfo({...businessInfo, business_type: e.target.value})}
+                      placeholder="e.g., Restaurant, Retail, Services"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="address">Business Address *</Label>
+                    <Input
+                      id="address"
+                      value={businessInfo.address}
+                      onChange={(e) => setBusinessInfo({...businessInfo, address: e.target.value})}
+                      placeholder="Enter your business address"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      value={businessInfo.phone}
+                      onChange={(e) => setBusinessInfo({...businessInfo, phone: e.target.value})}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="website">Website (Optional)</Label>
+                    <Input
+                      id="website"
+                      value={businessInfo.website}
+                      onChange={(e) => setBusinessInfo({...businessInfo, website: e.target.value})}
+                      placeholder="https://yourwebsite.com"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="businessType">Business Type</Label>
-                  <select
-                    id="businessType"
-                    value={merchantData.businessType}
-                    onChange={(e) => setMerchantData(prev => ({ ...prev, businessType: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Select Business Type</option>
-                    <option value="retail">Retail</option>
-                    <option value="restaurant">Restaurant</option>
-                    <option value="services">Services</option>
-                    <option value="online">Online Business</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
+                <Button 
+                  onClick={handleKycSubmission}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  disabled={!businessInfo.business_name || !businessInfo.business_type || !businessInfo.address || !businessInfo.phone}
+                >
+                  Submit for Review
+                </Button>
+              </CardContent>
+            </Card>
 
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    value={merchantData.phone}
-                    onChange={(e) => setMerchantData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+1234567890"
-                  />
+            <Card>
+              <CardHeader>
+                <CardTitle>Verification Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Badge className={`${
+                    profile?.kyc_status === 'approved' ? 'bg-green-600' :
+                    profile?.kyc_status === 'under_review' ? 'bg-orange-600' :
+                    profile?.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-gray-600'
+                  } text-white px-4 py-2`}>
+                    {profile?.kyc_status?.toUpperCase() || 'PENDING'}
+                  </Badge>
                 </div>
-
-                <div>
-                  <Label htmlFor="email">Business Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={merchantData.email}
-                    onChange={(e) => setMerchantData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="business@example.com"
-                  />
+                
+                <div className="mt-4 text-sm text-gray-600">
+                  {profile?.kyc_status === 'pending' && "Please submit your business information to start the verification process."}
+                  {profile?.kyc_status === 'under_review' && "Your business information is being reviewed. This typically takes 2-5 business days."}
+                  {profile?.kyc_status === 'approved' && "Your merchant account is verified. You can now use all payment features."}
+                  {profile?.kyc_status === 'rejected' && "Your application was rejected. Please contact support or resubmit with correct information."}
                 </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="address">Business Address</Label>
-                  <Input
-                    id="address"
-                    value={merchantData.address}
-                    onChange={(e) => setMerchantData(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder="123 Business Street, City, State"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="website">Website (Optional)</Label>
-                  <Input
-                    id="website"
-                    value={merchantData.website}
-                    onChange={(e) => setMerchantData(prev => ({ ...prev, website: e.target.value }))}
-                    placeholder="https://yourbusiness.com"
-                  />
-                </div>
-              </div>
-
-              <Button 
-                onClick={updateMerchantProfile}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Update Profile
-              </Button>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {activeTab === 'payments' && (
           <Card>
             <CardHeader>
-              <CardTitle>Payment Methods</CardTitle>
+              <CardTitle>Payment Management</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <QrCode className="text-blue-600" size={20} />
-                      <div>
-                        <div className="font-medium">QR Code Payments</div>
-                        <div className="text-sm text-gray-600">Accept payments via QR scanning</div>
-                      </div>
-                    </div>
-                    <Switch 
-                      checked={paymentMethods.qr}
-                      onCheckedChange={(checked) => setPaymentMethods(prev => ({ ...prev, qr: checked }))}
-                    />
-                  </div>
+            <CardContent>
+              {canAccessWallet ? (
+                <div className="text-center py-8">
+                  <CreditCard size={48} className="mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 mb-4">Payment processing system</p>
+                  <p className="text-sm text-gray-500">Manage payment links, invoices, and recurring payments</p>
                 </div>
-
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="text-green-600" size={20} />
-                      <div>
-                        <div className="font-medium">NFC Payments</div>
-                        <div className="text-sm text-gray-600">Tap-to-pay functionality</div>
-                      </div>
-                    </div>
-                    <Switch 
-                      checked={paymentMethods.nfc}
-                      onCheckedChange={(checked) => setPaymentMethods(prev => ({ ...prev, nfc: checked }))}
-                    />
-                  </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Shield size={48} className="mx-auto mb-4 text-yellow-500" />
+                  <p className="text-gray-600 mb-4">Complete KYC verification to access payment features</p>
+                  <Button onClick={() => setActiveTab('kyc')} className="bg-purple-600 hover:bg-purple-700 text-white">
+                    Complete KYC
+                  </Button>
                 </div>
-
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <Globe className="text-purple-600" size={20} />
-                      <div>
-                        <div className="font-medium">Online Payments</div>
-                        <div className="text-sm text-gray-600">Website and app integration</div>
-                      </div>
-                    </div>
-                    <Switch 
-                      checked={paymentMethods.online}
-                      onCheckedChange={(checked) => setPaymentMethods(prev => ({ ...prev, online: checked }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="text-orange-600" size={20} />
-                      <div>
-                        <div className="font-medium">POS Terminal</div>
-                        <div className="text-sm text-gray-600">Physical point of sale</div>
-                      </div>
-                    </div>
-                    <Switch 
-                      checked={paymentMethods.pos}
-                      onCheckedChange={(checked) => setPaymentMethods(prev => ({ ...prev, pos: checked }))}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-medium mb-4">Payment Fees</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600">QR Code</div>
-                    <div className="text-lg font-bold">1.5%</div>
-                  </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600">Online</div>
-                    <div className="text-lg font-bold">2.0%</div>
-                  </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600">International</div>
-                    <div className="text-lg font-bold">3.5%</div>
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {activeTab === 'tools' && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Payment Link Generator</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="linkAmount">Amount</Label>
-                    <Input
-                      id="linkAmount"
-                      type="number"
-                      placeholder="100.00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="linkDescription">Description</Label>
-                    <Input
-                      id="linkDescription"
-                      placeholder="Product or service"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button 
-                      onClick={() => {
-                        const amount = parseFloat((document.getElementById('linkAmount') as HTMLInputElement)?.value || '0');
-                        const description = (document.getElementById('linkDescription') as HTMLInputElement)?.value || '';
-                        generatePaymentLink(amount, description);
-                      }}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      Generate Link
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Integration Tools</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-medium mb-2">API Integration</h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Integrate Gate Finance payments into your existing systems.
-                    </p>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                      View API Documentation
-                    </Button>
-                  </div>
-
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-medium mb-2">WordPress Plugin</h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Easy integration for WordPress websites and WooCommerce stores.
-                    </p>
-                    <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                      Download Plugin
-                    </Button>
-                  </div>
-
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-medium mb-2">Mobile SDK</h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Native mobile app integration for iOS and Android.
-                    </p>
-                    <Button className="bg-green-600 hover:bg-green-700 text-white">
-                      Download SDK
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Placeholder for other tabs */}
-        {!['overview', 'profile', 'payments', 'tools'].includes(activeTab) && (
+        {activeTab === 'qr-codes' && (
           <Card>
             <CardHeader>
-              <CardTitle>{tabs.find(t => t.id === activeTab)?.label} - Coming Soon</CardTitle>
+              <CardTitle>QR Code Management</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">
-                  {React.createElement(tabs.find(t => t.id === activeTab)?.icon || Store, { size: 48 })}
+              {canAccessWallet ? (
+                <div className="text-center py-8">
+                  <QrCode size={48} className="mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 mb-4">QR code payment system</p>
+                  <p className="text-sm text-gray-500">Generate and manage QR codes for quick payments</p>
                 </div>
-                <p className="text-gray-600">This feature is under development and will be available soon.</p>
+              ) : (
+                <div className="text-center py-8">
+                  <Shield size={48} className="mx-auto mb-4 text-yellow-500" />
+                  <p className="text-gray-600 mb-4">Complete KYC verification to access QR features</p>
+                  <Button onClick={() => setActiveTab('kyc')} className="bg-purple-600 hover:bg-purple-700 text-white">
+                    Complete KYC
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'transactions' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {canAccessWallet ? (
+                <div className="space-y-4">
+                  {transactions.length > 0 ? (
+                    transactions.map((tx) => (
+                      <div key={tx.id} className="p-4 bg-gray-50 rounded-lg border">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">{tx.transaction_type}</div>
+                            <div className="text-sm text-gray-600">{tx.amount} {tx.token_symbol}</div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(tx.created_at).toLocaleString()}
+                            </div>
+                          </div>
+                          <Badge className={`${
+                            tx.status === 'completed' ? 'bg-green-600' :
+                            tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
+                          } text-white`}>
+                            {tx.status.toUpperCase()}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Receipt size={48} className="mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-600">No transactions yet</p>
+                      <p className="text-sm text-gray-500">Your payment transactions will appear here</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Shield size={48} className="mx-auto mb-4 text-yellow-500" />
+                  <p className="text-gray-600 mb-4">Complete KYC verification to view transactions</p>
+                  <Button onClick={() => setActiveTab('kyc')} className="bg-purple-600 hover:bg-purple-700 text-white">
+                    Complete KYC
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'analytics' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Business Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {canAccessWallet ? (
+                <div className="text-center py-8">
+                  <TrendingUp size={48} className="mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 mb-4">Business intelligence dashboard</p>
+                  <p className="text-sm text-gray-500">Revenue analytics, customer insights, and performance metrics</p>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Shield size={48} className="mx-auto mb-4 text-yellow-500" />
+                  <p className="text-gray-600 mb-4">Complete KYC verification to access analytics</p>
+                  <Button onClick={() => setActiveTab('kyc')} className="bg-purple-600 hover:bg-purple-700 text-white">
+                    Complete KYC
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'settings' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Merchant Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Settings size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-600 mb-4">Merchant account settings</p>
+                <p className="text-sm text-gray-500">Configure your business preferences and payment settings</p>
               </div>
             </CardContent>
           </Card>

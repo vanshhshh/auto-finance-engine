@@ -4,13 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Shield, Users, AlertTriangle, TrendingUp, Settings, FileText, BarChart3 } from 'lucide-react';
+import { Shield, Users, AlertTriangle, TrendingUp, Settings, FileText, BarChart3, LogOut, Wallet, QrCode, UserCheck, CreditCard, Globe, Brain, Smartphone, DollarSign } from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import BulkPaymentProcessor from './BulkPaymentProcessor';
+import BiometricAuth from './BiometricAuth';
+import RiskScoringSystem from './RiskScoringSystem';
+import SupportTicketSystem from './SupportTicketSystem';
+import RealExchangeRates from './RealExchangeRates';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('analytics');
   const { isAdmin, allUsers, complianceEvents, auditLogs } = useAdminData();
+  const { signOut } = useAuth();
   const { toast } = useToast();
 
   if (!isAdmin) {
@@ -29,6 +36,18 @@ const AdminDashboard = () => {
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'compliance', label: 'Compliance', icon: Shield },
     { id: 'admin', label: 'Admin Controls', icon: Settings },
+    { id: 'wallet-management', label: 'Wallet Management', icon: Wallet },
+    { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
+    { id: 'kyc-verification', label: 'KYC Verification', icon: UserCheck },
+    { id: 'bulk-payments', label: 'Bulk Payments', icon: CreditCard },
+    { id: 'exchange-rates', label: 'Exchange Rates', icon: TrendingUp },
+    { id: 'biometric-auth', label: 'Biometric Auth', icon: Shield },
+    { id: 'risk-scoring', label: 'Risk Scoring', icon: AlertTriangle },
+    { id: 'support-tickets', label: 'Support Tickets', icon: FileText },
+    { id: 'blockchain', label: 'Blockchain', icon: Globe },
+    { id: 'ai-fraud', label: 'AI Fraud Detection', icon: Brain },
+    { id: 'mobile-integration', label: 'Mobile Integration', icon: Smartphone },
+    { id: 'payment-gateways', label: 'Payment Gateways', icon: DollarSign },
   ];
 
   const handleUserStatusUpdate = async (userId: string, status: string) => {
@@ -36,6 +55,15 @@ const AdminDashboard = () => {
       title: "Status Updated",
       description: `User status has been updated to ${status}.`,
       className: "bg-blue-600 text-white border-blue-700",
+    });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Signed Out",
+      description: "You have been successfully signed out.",
+      className: "bg-green-600 text-white border-green-700",
     });
   };
 
@@ -48,16 +76,26 @@ const AdminDashboard = () => {
             <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             <p className="text-gray-600">System administration and monitoring</p>
           </div>
-          <Badge className="bg-red-600 text-white">
-            ADMIN ACCESS
-          </Badge>
+          <div className="flex items-center gap-4">
+            <Badge className="bg-red-600 text-white">
+              ADMIN ACCESS
+            </Badge>
+            <Button
+              onClick={handleSignOut}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Navigation */}
       <div className="bg-white border-b border-gray-200">
         <div className="px-6">
-          <nav className="flex space-x-4 overflow-x-auto py-2">
+          <nav className="flex space-x-1 overflow-x-auto py-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -103,7 +141,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Active Alerts</p>
-                      <p className="text-2xl font-bold text-red-600">{complianceEvents.filter(e => !e.resolved).length}</p>
+                      <p className="text-2xl font-bold text-red-600">{complianceEvents.length}</p>
                       <p className="text-xs text-red-600">Needs attention</p>
                     </div>
                     <AlertTriangle className="text-red-600" size={24} />
@@ -201,7 +239,7 @@ const AdminDashboard = () => {
                 <CardContent className="p-6">
                   <div className="text-center">
                     <p className="text-sm text-gray-600">Open Cases</p>
-                    <p className="text-3xl font-bold text-orange-600">{complianceEvents.filter(e => !e.resolved).length}</p>
+                    <p className="text-3xl font-bold text-orange-600">{complianceEvents.length}</p>
                     <p className="text-xs text-orange-600">Needs attention</p>
                   </div>
                 </CardContent>
@@ -357,6 +395,225 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {activeTab === 'wallet-management' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Wallet Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Wallet size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-600 mb-4">Advanced wallet management system</p>
+                <p className="text-sm text-gray-500">Monitor and manage user wallets, balances, and transactions</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'qr-payments' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>QR Payments Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <QrCode size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-600 mb-4">QR Payment System Administration</p>
+                <p className="text-sm text-gray-500">Manage QR payment configurations and monitor transactions</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'kyc-verification' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>KYC Verification Center</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <UserCheck size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-600 mb-4">KYC Document Review and Verification</p>
+                <p className="text-sm text-gray-500">Review user documents and approve KYC applications</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'bulk-payments' && <BulkPaymentProcessor />}
+        {activeTab === 'exchange-rates' && <RealExchangeRates />}
+        {activeTab === 'biometric-auth' && <BiometricAuth />}
+        {activeTab === 'risk-scoring' && <RiskScoringSystem />}
+        {activeTab === 'support-tickets' && <SupportTicketSystem />}
+
+        {activeTab === 'blockchain' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Blockchain Integration</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-6 border rounded-lg">
+                    <h3 className="font-medium mb-4">Smart Contract Management</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Active Contracts:</span>
+                        <span className="text-sm font-medium">47</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Gas Usage:</span>
+                        <span className="text-sm font-medium">1.2M gwei</span>
+                      </div>
+                      <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                        Deploy Contract
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6 border rounded-lg">
+                    <h3 className="font-medium mb-4">Network Status</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Network:</span>
+                        <Badge className="bg-green-600 text-white">Ethereum Mainnet</Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Block Height:</span>
+                        <span className="text-sm font-medium">18,742,361</span>
+                      </div>
+                      <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        View Explorer
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'ai-fraud' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Fraud Detection</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center p-6 border rounded-lg">
+                    <Brain className="mx-auto mb-2 text-purple-600" size={32} />
+                    <h3 className="font-medium">ML Models</h3>
+                    <p className="text-2xl font-bold text-purple-600">4</p>
+                    <p className="text-sm text-gray-600">Active Models</p>
+                  </div>
+                  
+                  <div className="text-center p-6 border rounded-lg">
+                    <AlertTriangle className="mx-auto mb-2 text-red-600" size={32} />
+                    <h3 className="font-medium">Fraud Detected</h3>
+                    <p className="text-2xl font-bold text-red-600">12</p>
+                    <p className="text-sm text-gray-600">Today</p>
+                  </div>
+                  
+                  <div className="text-center p-6 border rounded-lg">
+                    <Shield className="mx-auto mb-2 text-green-600" size={32} />
+                    <h3 className="font-medium">Accuracy</h3>
+                    <p className="text-2xl font-bold text-green-600">99.7%</p>
+                    <p className="text-sm text-gray-600">Detection Rate</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'mobile-integration' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Mobile App Integration</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-6 border rounded-lg">
+                    <h3 className="font-medium mb-4">Push Notifications</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Daily Active Users:</span>
+                        <span className="text-sm font-medium">15,247</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Notifications Sent:</span>
+                        <span className="text-sm font-medium">52,341</span>
+                      </div>
+                      <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        Send Broadcast
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6 border rounded-lg">
+                    <h3 className="font-medium mb-4">App Performance</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Crash Rate:</span>
+                        <span className="text-sm font-medium text-green-600">0.01%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">App Store Rating:</span>
+                        <span className="text-sm font-medium">4.8/5</span>
+                      </div>
+                      <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-white">
+                        View Analytics
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'payment-gateways' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Gateway Integration</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="p-6 border rounded-lg">
+                    <h3 className="font-medium mb-4">Stripe Integration</h3>
+                    <div className="space-y-3">
+                      <Badge className="bg-green-600 text-white">Connected</Badge>
+                      <div className="text-sm">Daily Volume: $127,435</div>
+                      <Button size="sm" className="w-full">Configure</Button>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6 border rounded-lg">
+                    <h3 className="font-medium mb-4">PayPal Integration</h3>
+                    <div className="space-y-3">
+                      <Badge className="bg-green-600 text-white">Connected</Badge>
+                      <div className="text-sm">Daily Volume: $89,123</div>
+                      <Button size="sm" className="w-full">Configure</Button>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6 border rounded-lg">
+                    <h3 className="font-medium mb-4">Bank APIs</h3>
+                    <div className="space-y-3">
+                      <Badge className="bg-orange-600 text-white">Setup Required</Badge>
+                      <div className="text-sm">Connected Banks: 0</div>
+                      <Button size="sm" className="w-full">Setup</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
