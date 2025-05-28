@@ -3,15 +3,15 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Receipt, QrCode, CreditCard, ArrowUpRight, ArrowDownLeft, LogOut } from 'lucide-react';
+import { Wallet, Send, Receipt, QrCode, CreditCard, ArrowUpRight, ArrowDownLeft, LogOut, Bell, Settings, Zap } from 'lucide-react';
 import { useWalletData } from '@/hooks/useWalletData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
 import QRPaymentSystem from './QRPaymentSystem';
-import NotificationCenter from './NotificationCenter';
 import UserSettings from './UserSettings';
+import RuleBuilder from './RuleBuilder';
 
 const WalletDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
@@ -23,10 +23,11 @@ const WalletDashboard = () => {
 
   const tabs = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
+    { id: 'transfer', label: 'Transfer', icon: Send },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
-    { id: 'notifications', label: 'Notifications', icon: Receipt },
-    { id: 'settings', label: 'Settings', icon: CreditCard },
+    { id: 'programmable-rules', label: 'Programmable Rules', icon: Zap },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const totalBalance = balances.reduce((sum, balance) => {
@@ -38,6 +39,7 @@ const WalletDashboard = () => {
   }, 0);
 
   const recentTransactions = transactions.slice(0, 5);
+  const unreadNotifications = notifications.filter(n => !n.read).length;
 
   const handleSignOut = async () => {
     await signOut();
@@ -60,12 +62,22 @@ const WalletDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">My Wallet</h1>
-            <p className="text-gray-600">Manage your digital assets and transactions</p>
+            <p className="text-gray-600">Manage your digital assets and CBDC transactions</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm text-gray-600">Total Portfolio Value</p>
               <p className="text-2xl font-bold text-green-600">${totalBalance.toFixed(2)}</p>
+            </div>
+            <div className="relative">
+              <Button variant="outline" size="icon" className="relative">
+                <Bell size={20} />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {unreadNotifications}
+                  </span>
+                )}
+              </Button>
             </div>
             <Button
               onClick={handleSignOut}
@@ -205,6 +217,36 @@ const WalletDashboard = () => {
           </div>
         )}
 
+        {activeTab === 'transfer' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transfer Money</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Button 
+                  onClick={() => openTransactionModal('send')}
+                  className="p-8 h-auto flex-col bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Send className="mb-4" size={48} />
+                  <span className="text-xl font-semibold">Send Money</span>
+                  <span className="text-sm opacity-90 mt-2">Transfer funds instantly using CBDC technology</span>
+                </Button>
+                
+                <Button 
+                  onClick={() => openTransactionModal('receive')}
+                  variant="outline"
+                  className="p-8 h-auto flex-col border-green-600 text-green-600 hover:bg-green-50"
+                >
+                  <ArrowDownLeft className="mb-4" size={48} />
+                  <span className="text-xl font-semibold">Request Payment</span>
+                  <span className="text-sm mt-2">Create a payment request for others to pay you</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {activeTab === 'transactions' && (
           <Card>
             <CardHeader>
@@ -267,7 +309,7 @@ const WalletDashboard = () => {
         )}
 
         {activeTab === 'qr-payments' && <QRPaymentSystem />}
-        {activeTab === 'notifications' && <NotificationCenter />}
+        {activeTab === 'programmable-rules' && <RuleBuilder />}
         {activeTab === 'settings' && <UserSettings />}
       </div>
 
