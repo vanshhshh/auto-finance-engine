@@ -3,302 +3,246 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Wallet, Send, Download, Activity, Settings, LogOut, Shield, Building, 
-  AlertCircle, QrCode, CreditCard, TrendingUp, Users, Globe, Smartphone
-} from 'lucide-react';
+import { Wallet, Send, Receipt, History, QrCode, CreditCard, TrendingUp, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { useWalletData } from '@/hooks/useWalletData';
 import TokenBalance from './TokenBalance';
 import TransactionModal from './TransactionModal';
-import ActivityLog from './ActivityLog';
-import AnalyticsDashboard from './AnalyticsDashboard';
-import ComplianceMonitor from './ComplianceMonitor';
-import NotificationCenter from './NotificationCenter';
-import AdminDashboard from './AdminDashboard';
-import UserSettings from './UserSettings';
 import QRPaymentSystem from './QRPaymentSystem';
-import MultiFactorAuth from './MultiFactorAuth';
-import ExchangeRateManager from './ExchangeRateManager';
-import MerchantDashboard from './MerchantDashboard';
-import { useAuth } from '@/contexts/AuthContext';
-import { useWalletData } from '@/hooks/useWalletData';
-import { useRealTimeData } from '@/hooks/useRealTimeData';
-import { useToast } from '@/hooks/use-toast';
+import NotificationCenter from './NotificationCenter';
+import UserSettings from './UserSettings';
 
 const WalletDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
-  const [modalType, setModalType] = useState<'send' | 'receive' | null>(null);
-  const { user, signOut } = useAuth();
-  const { profile, balances } = useWalletData();
-  const { toast } = useToast();
-  
-  useRealTimeData();
-
-  const isAdmin = user?.email?.includes('admin') || false;
-  const isMerchant = profile?.organization?.type === 'merchant' || profile?.role === 'merchant';
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const { balances, transactions, notifications } = useWalletData();
 
   const tabs = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
-    { id: 'activity', label: 'Activity', icon: Activity },
-    { id: 'qr-pay', label: 'QR Payments', icon: QrCode },
-    { id: 'exchange', label: 'Exchange', icon: TrendingUp },
-    ...(isMerchant ? [
-      { id: 'merchant', label: 'Merchant', icon: CreditCard }
-    ] : []),
-    { id: 'security', label: 'Security', icon: Shield },
-    ...(isAdmin ? [
-      { id: 'analytics', label: 'Analytics', icon: AnalyticsDashboard },
-      { id: 'compliance', label: 'Compliance', icon: Shield },
-      { id: 'admin', label: 'Admin', icon: Users }
-    ] : []),
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
+    { id: 'notifications', label: 'Notifications', icon: Receipt },
+    { id: 'settings', label: 'Settings', icon: CreditCard },
   ];
 
-  const getTokenBalance = (symbol: string) => {
-    const balance = balances.find(b => b.token_symbol === symbol);
-    return balance ? Number(balance.balance) : 0;
-  };
+  const totalBalance = balances.reduce((sum, balance) => {
+    // Convert to USD for display (simplified conversion)
+    const usdValue = balance.token_symbol === 'eUSD' ? balance.balance : 
+                     balance.token_symbol === 'eINR' ? balance.balance * 0.012 :
+                     balance.token_symbol === 'eAED' ? balance.balance * 0.27 : 0;
+    return sum + usdValue;
+  }, 0);
 
-  const getTokenSymbol = (token: string) => {
-    switch (token) {
-      case 'eINR': return '₹';
-      case 'eUSD': return '$';
-      case 'eAED': return 'د.إ';
-      default: return '';
-    }
-  };
-
-  const getTokenColor = (token: string): 'emerald' | 'blue' | 'amber' => {
-    switch (token) {
-      case 'eINR': return 'emerald';
-      case 'eUSD': return 'blue';
-      case 'eAED': return 'amber';
-      default: return 'blue';
-    }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
-  const handleSendClick = () => {
-    if (!profile?.wallet_approved || profile?.kyc_status !== 'approved') {
-      toast({
-        title: "KYC Verification Required",
-        description: "You must complete KYC verification and get wallet approval before sending CBDC.",
-        className: "bg-blue-600 text-white border-blue-700",
-      });
-      return;
-    }
-    setModalType('send');
-  };
-
-  const handleAddCBDC = () => {
-    toast({
-      title: "Add CBDC",
-      description: "Please use your bank's app to add CBDC to your wallet.",
-      className: "bg-blue-600 text-white border-blue-700",
-    });
-  };
+  const recentTransactions = transactions.slice(0, 5);
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl bg-white min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Gate Finance</h1>
-            <p className="text-blue-600">Programmable CBDC Wallet Platform</p>
+            <h1 className="text-2xl font-bold text-gray-900">My Wallet</h1>
+            <p className="text-gray-600">Manage your digital assets and transactions</p>
           </div>
-          <div className="flex items-center gap-4">
-            <NotificationCenter />
-            <Badge variant="default" className="px-3 py-1 bg-green-600 text-white">
-              Connected
-            </Badge>
-            {isAdmin && (
-              <Badge className="bg-red-600 px-3 py-1 text-white">
-                Admin
-              </Badge>
-            )}
-            {isMerchant && (
-              <Badge className="bg-purple-600 px-3 py-1 text-white">
-                Merchant
-              </Badge>
-            )}
-            {profile?.organization && (
-              <Badge variant="outline" className="border-blue-400 text-blue-600 px-3 py-1">
-                <Building size={14} className="mr-1" />
-                {profile.organization.type}
-              </Badge>
-            )}
-            {profile?.wallet_address && (
-              <div className="text-sm text-blue-600 font-mono">
-                {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
-              </div>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveTab('settings')}
-              className="border-blue-400 text-blue-600 hover:bg-blue-50"
-            >
-              <Settings size={16} className="mr-2" />
-              Settings
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSignOut}
-              className="border-red-400 text-red-600 hover:bg-red-50"
-            >
-              <LogOut size={16} className="mr-2" />
-              Sign Out
-            </Button>
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Total Portfolio Value</p>
+            <p className="text-2xl font-bold text-green-600">${totalBalance.toFixed(2)}</p>
           </div>
-        </div>
-        
-        {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg backdrop-blur-sm overflow-x-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
-                }`}
-              >
-                <Icon size={18} />
-                {tab.label}
-              </button>
-            );
-          })}
         </div>
       </div>
 
-      {/* KYC Status Alert */}
-      {!isAdmin && profile?.kyc_status !== 'approved' && (
-        <Card className="bg-orange-50 border-orange-200 mb-6">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="text-orange-600" size={20} />
-              <div>
-                <div className="text-orange-800 font-medium">KYC Verification Required</div>
-                <div className="text-orange-700 text-sm">
-                  Complete your KYC verification in Settings to unlock full wallet functionality.
-                </div>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => setActiveTab('settings')}
-                className="bg-orange-600 hover:bg-orange-700 text-white ml-auto"
+      {/* Navigation */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="px-6">
+          <nav className="flex space-x-4 overflow-x-auto py-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-all ${
+                    activeTab === tab.id
+                      ? 'border-blue-600 text-blue-600 bg-blue-50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon size={16} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        {activeTab === 'wallet' && (
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button 
+                onClick={() => setShowTransactionModal(true)}
+                className="p-6 h-auto flex-col bg-blue-600 hover:bg-blue-700 text-white"
               >
-                Complete KYC
+                <Send className="mb-2" size={24} />
+                <span>Send Money</span>
+              </Button>
+              
+              <Button 
+                variant="outline"
+                className="p-6 h-auto flex-col border-green-600 text-green-600 hover:bg-green-50"
+              >
+                <ArrowDownLeft className="mb-2" size={24} />
+                <span>Request Payment</span>
+              </Button>
+              
+              <Button 
+                variant="outline"
+                className="p-6 h-auto flex-col border-purple-600 text-purple-600 hover:bg-purple-50"
+              >
+                <QrCode className="mb-2" size={24} />
+                <span>QR Payment</span>
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Tab Content */}
-      {activeTab === 'wallet' && (
-        <div className="space-y-6">
-          {/* Organization Info */}
-          {profile?.organization && (
-            <Card className="bg-gray-50 border-gray-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Building className="text-blue-600" size={20} />
-                    <div>
-                      <div className="text-gray-900 font-medium">{profile.organization.name}</div>
-                      <div className="text-gray-600 text-sm">
-                        {profile.organization.type} • KYC: {profile.organization.kyc_status}
+            {/* Token Balances */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {balances.map((balance) => (
+                <TokenBalance key={balance.id} balance={balance} />
+              ))}
+            </div>
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Recent Activity</CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setActiveTab('transactions')}
+                >
+                  View All
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {recentTransactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-full ${
+                          tx.transaction_type === 'send' ? 'bg-red-100' : 'bg-green-100'
+                        }`}>
+                          {tx.transaction_type === 'send' ? 
+                            <ArrowUpRight className="text-red-600" size={16} /> : 
+                            <ArrowDownLeft className="text-green-600" size={16} />
+                          }
+                        </div>
+                        <div>
+                          <div className="font-medium capitalize">{tx.transaction_type}</div>
+                          <div className="text-sm text-gray-600">
+                            {new Date(tx.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`font-medium ${
+                          tx.transaction_type === 'send' ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {tx.transaction_type === 'send' ? '-' : '+'}
+                          {tx.amount} {tx.token_symbol}
+                        </div>
+                        <Badge className={`${
+                          tx.status === 'completed' ? 'bg-green-600' :
+                          tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
+                        } text-white`}>
+                          {tx.status}
+                        </Badge>
                       </div>
                     </div>
-                  </div>
-                  <Badge className={`${
-                    profile.organization.compliance_score > 80 ? 'bg-green-600' : 
-                    profile.organization.compliance_score > 60 ? 'bg-yellow-600' : 'bg-red-600'
-                  } text-white`}>
-                    Compliance: {profile.organization.compliance_score || 0}%
-                  </Badge>
+                  ))}
+                  {recentTransactions.length === 0 && (
+                    <div className="text-center py-8 text-gray-600">
+                      <Receipt size={48} className="mx-auto mb-4 text-gray-400" />
+                      <p>No transactions yet</p>
+                      <p className="text-sm">Start sending or receiving money to see your activity here</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {/* Token Balances */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {['eINR', 'eUSD', 'eAED'].map((token) => (
-              <TokenBalance 
-                key={token}
-                token={token} 
-                balance={getTokenBalance(token)} 
-                symbol={getTokenSymbol(token)} 
-                color={getTokenColor(token)} 
-              />
-            ))}
           </div>
+        )}
 
-          {/* Action Buttons */}
-          <Card className="bg-gray-50 border-gray-200">
+        {activeTab === 'transactions' && (
+          <Card>
             <CardHeader>
-              <CardTitle className="text-gray-900">Quick Actions</CardTitle>
+              <CardTitle>Transaction History</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Button
-                  onClick={handleSendClick}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Send size={18} className="mr-2" />
-                  Send
-                </Button>
-                <Button
-                  onClick={() => setModalType('receive')}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Download size={18} className="mr-2" />
-                  Receive
-                </Button>
-                <Button
-                  onClick={() => setActiveTab('qr-pay')}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  <QrCode size={18} className="mr-2" />
-                  QR Pay
-                </Button>
-                <Button
-                  onClick={handleAddCBDC}
-                  className="bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  Add CBDC
-                </Button>
+              <div className="space-y-4">
+                {transactions.map((tx) => (
+                  <div key={tx.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-full ${
+                        tx.transaction_type === 'send' ? 'bg-red-100' : 'bg-green-100'
+                      }`}>
+                        {tx.transaction_type === 'send' ? 
+                          <ArrowUpRight className="text-red-600" size={20} /> : 
+                          <ArrowDownLeft className="text-green-600" size={20} />
+                        }
+                      </div>
+                      <div>
+                        <div className="font-medium capitalize">{tx.transaction_type}</div>
+                        <div className="text-sm text-gray-600">
+                          To: {tx.to_address.slice(0, 10)}...{tx.to_address.slice(-8)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(tx.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`font-medium ${
+                        tx.transaction_type === 'send' ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {tx.transaction_type === 'send' ? '-' : '+'}
+                        {tx.amount} {tx.token_symbol}
+                      </div>
+                      <Badge className={`${
+                        tx.status === 'completed' ? 'bg-green-600' :
+                        tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
+                      } text-white`}>
+                        {tx.status.toUpperCase()}
+                      </Badge>
+                      {tx.tx_hash && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Hash: {tx.tx_hash.slice(0, 8)}...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {transactions.length === 0 && (
+                  <div className="text-center py-12 text-gray-600">
+                    <History size={48} className="mx-auto mb-4 text-gray-400" />
+                    <p>No transaction history</p>
+                    <p className="text-sm">Your completed transactions will appear here</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
+        )}
 
-      {activeTab === 'activity' && <ActivityLog />}
-      {activeTab === 'qr-pay' && <QRPaymentSystem />}
-      {activeTab === 'exchange' && <ExchangeRateManager />}
-      {activeTab === 'merchant' && isMerchant && <MerchantDashboard />}
-      {activeTab === 'security' && <MultiFactorAuth />}
-      {activeTab === 'analytics' && isAdmin && <AnalyticsDashboard />}
-      {activeTab === 'compliance' && isAdmin && <ComplianceMonitor />}
-      {activeTab === 'admin' && isAdmin && <AdminDashboard />}
-      {activeTab === 'settings' && <UserSettings />}
+        {activeTab === 'qr-payments' && <QRPaymentSystem />}
+        {activeTab === 'notifications' && <NotificationCenter />}
+        {activeTab === 'settings' && <UserSettings />}
+      </div>
 
       {/* Transaction Modal */}
-      {modalType && (
-        <TransactionModal
-          type={modalType}
-          isOpen={!!modalType}
-          onClose={() => setModalType(null)}
-        />
+      {showTransactionModal && (
+        <TransactionModal onClose={() => setShowTransactionModal(false)} />
       )}
     </div>
   );
