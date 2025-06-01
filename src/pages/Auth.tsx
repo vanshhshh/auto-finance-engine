@@ -60,12 +60,14 @@ const Auth = () => {
           toast({
             title: "Welcome back!",
             description: "Successfully signed in.",
+            className: "bg-blue-600 text-white border-blue-700",
           });
           navigate('/');
         } else {
           toast({
             title: "Account Created!",
             description: "Please check your email for a confirmation link to complete your registration.",
+            className: "bg-blue-600 text-white border-blue-700",
           });
         }
       }
@@ -81,49 +83,49 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex items-center justify-center p-6">
-      <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm w-full max-w-md">
+    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+      <Card className="bg-white border-gray-200 shadow-lg w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Wallet className="text-blue-400" size={32} />
-            <div className="text-2xl font-bold text-white">Gate Finance</div>
+            <Wallet className="text-blue-600" size={32} />
+            <div className="text-2xl font-bold text-gray-900">Gate Finance</div>
           </div>
-          <CardTitle className="text-white">
+          <CardTitle className="text-gray-900">
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </CardTitle>
-          <p className="text-blue-200 text-sm">
+          <p className="text-gray-600 text-sm">
             {isLogin ? 'Sign in to your programmable wallet' : 'Join the future of programmable payments'}
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="email" className="text-white">Email</Label>
+              <Label htmlFor="email" className="text-gray-900">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
-                className="bg-slate-700 border-slate-600 text-white"
+                className="bg-white border-gray-300 text-gray-900"
                 required
               />
             </div>
             
             <div>
-              <Label htmlFor="password" className="text-white">Password</Label>
+              <Label htmlFor="password" className="text-gray-900">Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="bg-slate-700 border-slate-600 text-white"
+                className="bg-white border-gray-300 text-gray-900"
                 required
                 minLength={6}
               />
               {!isLogin && (
-                <p className="text-xs text-blue-300 mt-1">
+                <p className="text-xs text-gray-600 mt-1">
                   Password must be at least 6 characters long
                 </p>
               )}
@@ -141,14 +143,14 @@ const Auth = () => {
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-blue-400 hover:text-blue-300 text-sm"
+                className="text-blue-600 hover:text-blue-700 text-sm"
               >
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
             </div>
 
             {!isLogin && (
-              <div className="text-xs text-blue-300 text-center mt-4 p-3 bg-blue-900/20 rounded">
+              <div className="text-xs text-gray-600 text-center mt-4 p-3 bg-blue-50 rounded">
                 <p className="font-medium mb-1">After creating your account:</p>
                 <p>1. Check your email for a confirmation link</p>
                 <p>2. Click the link to verify your email</p>

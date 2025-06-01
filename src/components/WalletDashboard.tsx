@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Receipt, QrCode, CreditCard, ArrowUpRight, ArrowDownLeft, LogOut, Bell, Settings, Zap } from 'lucide-react';
+import { Wallet, Send, Receipt, QrCode, ArrowUpRight, ArrowDownLeft, LogOut, Bell, Settings, Zap } from 'lucide-react';
 import { useWalletData } from '@/hooks/useWalletData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -12,12 +12,15 @@ import TransactionModal from './TransactionModal';
 import QRPaymentSystem from './QRPaymentSystem';
 import UserSettings from './UserSettings';
 import RuleBuilder from './RuleBuilder';
+import TransferPage from './TransferPage';
+import KYCOnboarding from './KYCOnboarding';
 
 const WalletDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [transactionType, setTransactionType] = useState<'send' | 'receive'>('send');
-  const { balances, transactions, notifications } = useWalletData();
+  const { balances, transactions, notifications, profile } = useWalletData();
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -27,11 +30,9 @@ const WalletDashboard = () => {
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
     { id: 'programmable-rules', label: 'Programmable Rules', icon: Zap },
-    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const totalBalance = balances.reduce((sum, balance) => {
-    // Convert to USD for display (simplified conversion)
     const usdValue = balance.token_symbol === 'eUSD' ? Number(balance.balance) : 
                      balance.token_symbol === 'eINR' ? Number(balance.balance) * 0.012 :
                      balance.token_symbol === 'eAED' ? Number(balance.balance) * 0.27 : 0;
@@ -46,7 +47,7 @@ const WalletDashboard = () => {
     toast({
       title: "Signed Out",
       description: "You have been successfully signed out.",
-      className: "bg-green-600 text-white border-green-700",
+      className: "bg-blue-600 text-white border-blue-700",
     });
   };
 
@@ -54,6 +55,49 @@ const WalletDashboard = () => {
     setTransactionType(type);
     setShowTransactionModal(true);
   };
+
+  // Check if user needs KYC
+  if (!profile?.kyc_status || profile.kyc_status === 'pending') {
+    return <KYCOnboarding />;
+  }
+
+  if (profile.kyc_status === 'under_review') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">KYC Under Review</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-gray-600 mb-4">
+              Your KYC documents are being reviewed. This typically takes 1-3 business days.
+            </p>
+            <Badge className="bg-orange-600 text-white">Under Review</Badge>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (profile.kyc_status === 'rejected') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center text-red-600">KYC Rejected</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-gray-600 mb-4">
+              Your KYC verification was rejected. Please contact support or resubmit your documents.
+            </p>
+            <Button onClick={() => setActiveTab('settings')} className="bg-blue-600 hover:bg-blue-700">
+              Resubmit Documents
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,6 +107,9 @@ const WalletDashboard = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">My Wallet</h1>
             <p className="text-gray-600">Manage your digital assets and CBDC transactions</p>
+            {profile?.wallet_address && (
+              <p className="text-sm text-gray-500">Address: {profile.wallet_address}</p>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -80,6 +127,13 @@ const WalletDashboard = () => {
               </Button>
             </div>
             <Button
+              onClick={() => setShowSettings(!showSettings)}
+              variant="outline"
+              size="icon"
+            >
+              <Settings size={20} />
+            </Button>
+            <Button
               onClick={handleSignOut}
               variant="outline"
               className="flex items-center gap-2"
@@ -90,6 +144,39 @@ const WalletDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Settings Dropdown */}
+      {showSettings && (
+        <div className="absolute top-20 right-6 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-64">
+          <div className="space-y-2">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start"
+              onClick={() => {
+                setActiveTab('settings');
+                setShowSettings(false);
+              }}
+            >
+              Profile Settings
+            </Button>
+            <Button variant="ghost" className="w-full justify-start">
+              User Guide
+            </Button>
+            <Button variant="ghost" className="w-full justify-start">
+              FAQ
+            </Button>
+            <Button variant="ghost" className="w-full justify-start">
+              Support
+            </Button>
+            <Button variant="ghost" className="w-full justify-start">
+              Privacy Policy
+            </Button>
+            <Button variant="ghost" className="w-full justify-start">
+              Terms of Service
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="bg-white border-b border-gray-200">
@@ -112,6 +199,17 @@ const WalletDashboard = () => {
                 </button>
               );
             })}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-all ${
+                activeTab === 'settings'
+                  ? 'border-blue-600 text-blue-600 bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Settings size={16} />
+              Settings
+            </button>
           </nav>
         </div>
       </div>
@@ -152,7 +250,13 @@ const WalletDashboard = () => {
             {/* Token Balances */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {balances.map((balance) => (
-                <TokenBalance key={balance.id} balance={balance} />
+                <TokenBalance 
+                  key={balance.id} 
+                  balance={{
+                    ...balance,
+                    balance: balance.balance.toString()
+                  }} 
+                />
               ))}
             </div>
 
@@ -217,36 +321,7 @@ const WalletDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'transfer' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Transfer Money</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Button 
-                  onClick={() => openTransactionModal('send')}
-                  className="p-8 h-auto flex-col bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Send className="mb-4" size={48} />
-                  <span className="text-xl font-semibold">Send Money</span>
-                  <span className="text-sm opacity-90 mt-2">Transfer funds instantly using CBDC technology</span>
-                </Button>
-                
-                <Button 
-                  onClick={() => openTransactionModal('receive')}
-                  variant="outline"
-                  className="p-8 h-auto flex-col border-green-600 text-green-600 hover:bg-green-50"
-                >
-                  <ArrowDownLeft className="mb-4" size={48} />
-                  <span className="text-xl font-semibold">Request Payment</span>
-                  <span className="text-sm mt-2">Create a payment request for others to pay you</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
+        {activeTab === 'transfer' && <TransferPage />}
         {activeTab === 'transactions' && (
           <Card>
             <CardHeader>

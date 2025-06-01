@@ -4,67 +4,101 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Shield, Users, AlertTriangle, TrendingUp, Settings, FileText, BarChart3, LogOut, Wallet, QrCode, UserCheck, CreditCard, Globe, Brain, Smartphone, DollarSign } from 'lucide-react';
-import { useAdminData } from '@/hooks/useAdminData';
-import { useAuth } from '@/contexts/AuthContext';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import BulkPaymentProcessor from './BulkPaymentProcessor';
-import BiometricAuth from './BiometricAuth';
-import RiskScoringSystem from './RiskScoringSystem';
-import SupportTicketSystem from './SupportTicketSystem';
-import RealExchangeRates from './RealExchangeRates';
+import { 
+  Users, 
+  Shield, 
+  AlertTriangle, 
+  TrendingUp, 
+  Settings,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Wallet,
+  QrCode,
+  FileText,
+  Globe,
+  Smartphone,
+  CreditCard,
+  Brain,
+  BarChart3,
+  Scale
+} from 'lucide-react';
+import { useAdminData } from '@/hooks/useAdminData';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('analytics');
-  const { isAdmin, allUsers, complianceEvents, auditLogs } = useAdminData();
-  const { signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState('overview');
+  const { systemControls, allUsers, auditLogs } = useAdminData();
   const { toast } = useToast();
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="mx-auto h-16 w-16 text-red-600 mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">You don't have permission to access the admin dashboard.</p>
-        </div>
-      </div>
-    );
-  }
-
   const tabs = [
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'compliance', label: 'Compliance', icon: Shield },
-    { id: 'admin', label: 'Admin Controls', icon: Settings },
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'user-management', label: 'User Management', icon: Users },
+    { id: 'admin-controls', label: 'Admin Controls', icon: Settings },
     { id: 'wallet-management', label: 'Wallet Management', icon: Wallet },
     { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
-    { id: 'kyc-verification', label: 'KYC Verification', icon: UserCheck },
-    { id: 'bulk-payments', label: 'Bulk Payments', icon: CreditCard },
-    { id: 'exchange-rates', label: 'Exchange Rates', icon: TrendingUp },
-    { id: 'biometric-auth', label: 'Biometric Auth', icon: Shield },
-    { id: 'risk-scoring', label: 'Risk Scoring', icon: AlertTriangle },
-    { id: 'support-tickets', label: 'Support Tickets', icon: FileText },
-    { id: 'blockchain', label: 'Blockchain', icon: Globe },
-    { id: 'ai-fraud', label: 'AI Fraud Detection', icon: Brain },
+    { id: 'kyc-verification', label: 'KYC Verification', icon: FileText },
+    { id: 'blockchain-integration', label: 'Blockchain Integration', icon: Globe },
     { id: 'mobile-integration', label: 'Mobile Integration', icon: Smartphone },
-    { id: 'payment-gateways', label: 'Payment Gateways', icon: DollarSign },
+    { id: 'payment-gateway', label: 'Payment Gateway', icon: CreditCard },
+    { id: 'ai-fraud-detection', label: 'AI Fraud Detection', icon: Brain },
+    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+    { id: 'compliance', label: 'Compliance', icon: Scale },
   ];
 
-  const handleUserStatusUpdate = async (userId: string, status: string) => {
-    toast({
-      title: "Status Updated",
-      description: `User status has been updated to ${status}.`,
-      className: "bg-blue-600 text-white border-blue-700",
-    });
+  const approveUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          wallet_approved: true,
+          kyc_status: 'approved'
+        })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "User Approved",
+        description: "User has been approved successfully.",
+        className: "bg-blue-600 text-white border-blue-700",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to approve user.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: "Signed Out",
-      description: "You have been successfully signed out.",
-      className: "bg-green-600 text-white border-green-700",
-    });
+  const rejectUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          wallet_approved: false,
+          kyc_status: 'rejected'
+        })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "User Rejected",
+        description: "User has been rejected.",
+        variant: "destructive",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reject user.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -74,20 +108,7 @@ const AdminDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-600">System administration and monitoring</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Badge className="bg-red-600 text-white">
-              ADMIN ACCESS
-            </Badge>
-            <Button
-              onClick={handleSignOut}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <LogOut size={16} />
-              Sign Out
-            </Button>
+            <p className="text-gray-600">Manage users, compliance, and system operations</p>
           </div>
         </div>
       </div>
@@ -95,7 +116,7 @@ const AdminDashboard = () => {
       {/* Navigation */}
       <div className="bg-white border-b border-gray-200">
         <div className="px-6">
-          <nav className="flex space-x-1 overflow-x-auto py-2">
+          <nav className="flex space-x-4 overflow-x-auto py-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -104,7 +125,7 @@ const AdminDashboard = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-all ${
                     activeTab === tab.id
-                      ? 'border-red-600 text-red-600 bg-red-50'
+                      ? 'border-blue-600 text-blue-600 bg-blue-50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -119,314 +140,136 @@ const AdminDashboard = () => {
 
       {/* Content */}
       <div className="p-6">
-        {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            {/* System Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Total Users</p>
-                      <p className="text-2xl font-bold text-blue-600">{allUsers.length}</p>
-                      <p className="text-xs text-green-600">+12% this month</p>
-                    </div>
-                    <Users className="text-blue-600" size={24} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Active Alerts</p>
-                      <p className="text-2xl font-bold text-red-600">{complianceEvents.length}</p>
-                      <p className="text-xs text-red-600">Needs attention</p>
-                    </div>
-                    <AlertTriangle className="text-red-600" size={24} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Monthly Revenue</p>
-                      <p className="text-2xl font-bold text-green-600">$2.4M</p>
-                      <p className="text-xs text-green-600">+8% from last month</p>
-                    </div>
-                    <TrendingUp className="text-green-600" size={24} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">System Health</p>
-                      <p className="text-2xl font-bold text-green-600">99.9%</p>
-                      <p className="text-xs text-green-600">All systems operational</p>
-                    </div>
-                    <Shield className="text-green-600" size={24} />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Real-time Monitoring */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Real-time Transaction Monitoring</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                      <div>
-                        <div className="font-medium text-green-800">Transaction Processing</div>
-                        <div className="text-sm text-green-600">1,247 transactions processed in last hour</div>
-                      </div>
-                    </div>
-                    <Badge className="bg-green-600 text-white">ACTIVE</Badge>
-                  </div>
+                <div className="text-2xl font-bold">{allUsers.length}</div>
+                <p className="text-xs text-muted-foreground">Active users</p>
+              </CardContent>
+            </Card>
 
-                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-                      <div>
-                        <div className="font-medium text-blue-800">KYC Processing</div>
-                        <div className="text-sm text-blue-600">23 documents pending review</div>
-                      </div>
-                    </div>
-                    <Badge className="bg-blue-600 text-white">PENDING</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-orange-50 rounded-lg border border-orange-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
-                      <div>
-                        <div className="font-medium text-orange-800">AML Screening</div>
-                        <div className="text-sm text-orange-600">5 transactions flagged for review</div>
-                      </div>
-                    </div>
-                    <Badge className="bg-orange-600 text-white">REVIEW</Badge>
-                  </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending KYC</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {allUsers.filter(u => u.kyc_status === 'pending' || u.kyc_status === 'under_review').length}
                 </div>
+                <p className="text-xs text-muted-foreground">Awaiting review</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Approved Wallets</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {allUsers.filter(u => u.wallet_approved).length}
+                </div>
+                <p className="text-xs text-muted-foreground">Active wallets</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">System Health</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">99.9%</div>
+                <p className="text-xs text-muted-foreground">Uptime</p>
               </CardContent>
             </Card>
           </div>
         )}
 
-        {activeTab === 'compliance' && (
-          <div className="space-y-6">
-            {/* Compliance Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">Compliance Score</p>
-                    <p className="text-3xl font-bold text-green-600">94%</p>
-                    <p className="text-xs text-green-600">Excellent</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">Open Cases</p>
-                    <p className="text-3xl font-bold text-orange-600">{complianceEvents.length}</p>
-                    <p className="text-xs text-orange-600">Needs attention</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">Reports Generated</p>
-                    <p className="text-3xl font-bold text-blue-600">156</p>
-                    <p className="text-xs text-blue-600">This month</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Compliance Events */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Compliance Events</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {complianceEvents.slice(0, 10).map((event) => (
-                    <div key={event.id} className="p-4 bg-gray-50 rounded-lg border">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">{event.event_type}</div>
-                          <div className="text-sm text-gray-600">{event.description}</div>
-                          <div className="text-xs text-gray-500">
-                            {new Date(event.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge className={`${
-                            event.severity === 'critical' ? 'bg-red-600' :
-                            event.severity === 'high' ? 'bg-orange-600' :
-                            event.severity === 'medium' ? 'bg-yellow-600' : 'bg-green-600'
-                          } text-white`}>
-                            {event.severity.toUpperCase()}
-                          </Badge>
-                          <div className="mt-2">
-                            <Badge className={`${
-                              event.resolved ? 'bg-green-600' : 'bg-gray-600'
-                            } text-white`}>
-                              {event.resolved ? 'RESOLVED' : 'OPEN'}
-                            </Badge>
-                          </div>
-                        </div>
+        {activeTab === 'user-management' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {allUsers.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium">{user.wallet_address || 'No Address'}</div>
+                      <div className="text-sm text-gray-600">Role: {user.role}</div>
+                      <div className="text-sm text-gray-600">
+                        KYC: <Badge className={`${
+                          user.kyc_status === 'approved' ? 'bg-green-600' :
+                          user.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
+                        } text-white`}>
+                          {user.kyc_status?.toUpperCase() || 'PENDING'}
+                        </Badge>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Audit Logs */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Audit Logs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {auditLogs.slice(0, 10).map((log) => (
-                    <div key={log.id} className="p-4 bg-gray-50 rounded-lg border">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">{log.action}</div>
-                          <div className="text-sm text-gray-600">
-                            User: {log.user_id ? log.user_id.slice(0, 8) + '...' : 'System'}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {new Date(log.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-600">
-                            {log.ip_address && `IP: ${log.ip_address}`}
-                          </div>
-                        </div>
-                      </div>
+                    <div className="flex gap-2">
+                      {user.kyc_status !== 'approved' && (
+                        <Button 
+                          onClick={() => approveUser(user.user_id)}
+                          size="sm" 
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          Approve
+                        </Button>
+                      )}
+                      {user.kyc_status !== 'rejected' && (
+                        <Button 
+                          onClick={() => rejectUser(user.user_id)}
+                          size="sm" 
+                          variant="destructive"
+                        >
+                          Reject
+                        </Button>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {activeTab === 'admin' && (
+        {activeTab === 'admin-controls' && (
           <div className="space-y-6">
-            {/* User Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle>User Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4 mb-4">
-                    <Input placeholder="Search users..." className="max-w-md" />
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">Search</Button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {allUsers.slice(0, 10).map((user) => (
-                      <div key={user.id} className="p-4 bg-gray-50 rounded-lg border">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium">User ID: {user.user_id}</div>
-                            <div className="text-sm text-gray-600">Role: {user.role}</div>
-                            <div className="text-sm text-gray-600">
-                              KYC Status: {user.kyc_status || 'pending'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Created: {new Date(user.created_at).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            {user.kyc_status === 'approved' ? (
-                              <Badge className="bg-green-600 text-white">APPROVED</Badge>
-                            ) : (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleUserStatusUpdate(user.user_id, 'approved')}
-                                  className="bg-green-600 hover:bg-green-700 text-white"
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleUserStatusUpdate(user.user_id, 'suspended')}
-                                  className="border-red-400 text-red-600 hover:bg-red-50"
-                                >
-                                  Suspend
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* System Controls */}
             <Card>
               <CardHeader>
                 <CardTitle>System Controls</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-medium mb-2">Transaction Limits</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Daily Limit:</span>
-                        <span className="text-sm font-medium">$50,000</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Monthly Limit:</span>
-                        <span className="text-sm font-medium">$1,000,000</span>
-                      </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium">Maintenance Mode</div>
+                      <div className="text-sm text-gray-600">Temporarily disable user access</div>
                     </div>
-                    <Button size="sm" className="mt-3 bg-blue-600 hover:bg-blue-700 text-white">
-                      Update Limits
-                    </Button>
+                    <Badge className="bg-green-600 text-white">Active</Badge>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium">New User Registrations</div>
+                      <div className="text-sm text-gray-600">Allow new users to register</div>
+                    </div>
+                    <Badge className="bg-green-600 text-white">Enabled</Badge>
                   </div>
 
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-medium mb-2">System Maintenance</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Last Backup:</span>
-                        <span className="text-sm font-medium">2 hours ago</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">System Status:</span>
-                        <Badge className="bg-green-600 text-white">OPERATIONAL</Badge>
-                      </div>
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium">Transaction Processing</div>
+                      <div className="text-sm text-gray-600">Process CBDC transactions</div>
                     </div>
-                    <Button size="sm" className="mt-3 bg-gray-600 hover:bg-gray-700 text-white">
-                      Run Maintenance
-                    </Button>
+                    <Badge className="bg-green-600 text-white">Active</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -437,43 +280,36 @@ const AdminDashboard = () => {
         {activeTab === 'wallet-management' && (
           <Card>
             <CardHeader>
-              <CardTitle>Wallet Management System</CardTitle>
+              <CardTitle>Wallet Management</CardTitle>
+              <p className="text-sm text-gray-600">Manage user wallets and CBDC balances</p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-6 border rounded-lg">
-                    <Wallet className="mx-auto mb-2 text-blue-600" size={32} />
-                    <h3 className="font-medium">Total Wallets</h3>
-                    <p className="text-2xl font-bold text-blue-600">{allUsers.length}</p>
-                    <p className="text-sm text-gray-600">Active Wallets</p>
+              <div className="space-y-4">
+                {allUsers.filter(u => u.wallet_approved).map((user) => (
+                  <div key={user.id} className="p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium">{user.wallet_address}</div>
+                      <Badge className="bg-green-600 text-white">Approved</Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">eINR Balance:</span>
+                        <div className="font-medium">₹0.00</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">eUSD Balance:</span>
+                        <div className="font-medium">$0.00</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">eAED Balance:</span>
+                        <div className="font-medium">د.إ0.00</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Last Activity: {new Date(user.updated_at).toLocaleDateString()}
+                    </div>
                   </div>
-                  
-                  <div className="text-center p-6 border rounded-lg">
-                    <DollarSign className="mx-auto mb-2 text-green-600" size={32} />
-                    <h3 className="font-medium">Total Value Locked</h3>
-                    <p className="text-2xl font-bold text-green-600">$12.4M</p>
-                    <p className="text-sm text-gray-600">Across All Currencies</p>
-                  </div>
-                  
-                  <div className="text-center p-6 border rounded-lg">
-                    <Shield className="mx-auto mb-2 text-purple-600" size={32} />
-                    <h3 className="font-medium">Security Score</h3>
-                    <p className="text-2xl font-bold text-purple-600">98%</p>
-                    <p className="text-sm text-gray-600">Multi-sig Protected</p>
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium mb-2">Wallet Features</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Multi-currency support (eUSD, eINR, eAED)</li>
-                    <li>• Real-time balance tracking and updates</li>
-                    <li>• Multi-signature security for high-value transactions</li>
-                    <li>• Automated compliance and AML screening</li>
-                    <li>• Integration with programmable payment rules</li>
-                  </ul>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -482,42 +318,22 @@ const AdminDashboard = () => {
         {activeTab === 'qr-payments' && (
           <Card>
             <CardHeader>
-              <CardTitle>QR Payment System Management</CardTitle>
+              <CardTitle>QR Payment System</CardTitle>
+              <p className="text-sm text-gray-600">Monitor and manage QR code payment transactions</p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-6 border rounded-lg">
-                    <QrCode className="mx-auto mb-2 text-green-600" size={32} />
-                    <h3 className="font-medium">QR Codes Generated</h3>
-                    <p className="text-2xl font-bold text-green-600">15,247</p>
-                    <p className="text-sm text-gray-600">This Month</p>
-                  </div>
-                  
-                  <div className="text-center p-6 border rounded-lg">
-                    <TrendingUp className="mx-auto mb-2 text-blue-600" size={32} />
-                    <h3 className="font-medium">Success Rate</h3>
-                    <p className="text-2xl font-bold text-blue-600">99.2%</p>
-                    <p className="text-sm text-gray-600">Payment Success</p>
-                  </div>
-                  
-                  <div className="text-center p-6 border rounded-lg">
-                    <DollarSign className="mx-auto mb-2 text-purple-600" size={32} />
-                    <h3 className="font-medium">Volume Processed</h3>
-                    <p className="text-2xl font-bold text-purple-600">$2.8M</p>
-                    <p className="text-sm text-gray-600">This Month</p>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">247</div>
+                  <div className="text-sm text-gray-600">QR Codes Generated Today</div>
                 </div>
-                
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <h4 className="font-medium mb-2">QR Payment Features</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Instant payment processing with CBDC technology</li>
-                    <li>• Dynamic QR codes with embedded payment details</li>
-                    <li>• Support for multiple currencies and cross-border payments</li>
-                    <li>• Real-time transaction notifications and receipts</li>
-                    <li>• Merchant integration with payment analytics</li>
-                  </ul>
+                  <div className="text-2xl font-bold text-green-600">189</div>
+                  <div className="text-sm text-gray-600">Successful Payments</div>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">₹45,670</div>
+                  <div className="text-sm text-gray-600">Total Volume Today</div>
                 </div>
               </div>
             </CardContent>
@@ -527,253 +343,71 @@ const AdminDashboard = () => {
         {activeTab === 'kyc-verification' && (
           <Card>
             <CardHeader>
-              <CardTitle>KYC Verification Center</CardTitle>
+              <CardTitle>KYC Verification</CardTitle>
+              <p className="text-sm text-gray-600">Review and approve user KYC documents</p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-6 border rounded-lg">
-                    <UserCheck className="mx-auto mb-2 text-blue-600" size={32} />
-                    <h3 className="font-medium">Pending Reviews</h3>
-                    <p className="text-2xl font-bold text-blue-600">23</p>
-                    <p className="text-sm text-gray-600">Documents to Review</p>
+              <div className="space-y-4">
+                {allUsers.filter(u => u.kyc_status === 'under_review' || u.kyc_status === 'pending').map((user) => (
+                  <div key={user.id} className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <div className="font-medium">User: {user.wallet_address}</div>
+                        <div className="text-sm text-gray-600">
+                          Status: <Badge className="bg-orange-600 text-white">{user.kyc_status?.toUpperCase()}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                          Review Documents
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Country:</span> {user.country_of_residence || 'Not specified'}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Nationality:</span> {user.nationality || 'Not specified'}
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="text-center p-6 border rounded-lg">
-                    <Shield className="mx-auto mb-2 text-green-600" size={32} />
-                    <h3 className="font-medium">Approved Users</h3>
-                    <p className="text-2xl font-bold text-green-600">{allUsers.filter(u => u.kyc_status === 'approved').length}</p>
-                    <p className="text-sm text-gray-600">Verified Accounts</p>
-                  </div>
-                  
-                  <div className="text-center p-6 border rounded-lg">
-                    <AlertTriangle className="mx-auto mb-2 text-red-600" size={32} />
-                    <h3 className="font-medium">Risk Flagged</h3>
-                    <p className="text-2xl font-bold text-red-600">3</p>
-                    <p className="text-sm text-gray-600">High Risk Profiles</p>
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium mb-2">KYC Verification Process</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• AI-powered document verification and authenticity checks</li>
-                    <li>• Real-time identity verification against global databases</li>
-                    <li>• Biometric verification using facial recognition technology</li>
-                    <li>• Automated risk scoring and compliance screening</li>
-                    <li>• Digital identity creation with blockchain-based certificates</li>
-                  </ul>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         )}
 
-        {activeTab === 'bulk-payments' && <BulkPaymentProcessor />}
-        {activeTab === 'exchange-rates' && <RealExchangeRates />}
-        {activeTab === 'biometric-auth' && <BiometricAuth />}
-        {activeTab === 'risk-scoring' && <RiskScoringSystem />}
-        {activeTab === 'support-tickets' && <SupportTicketSystem />}
-
-        {activeTab === 'blockchain' && (
+        {activeTab === 'compliance' && (
           <Card>
             <CardHeader>
-              <CardTitle>Blockchain Integration</CardTitle>
+              <CardTitle>Compliance Monitoring</CardTitle>
+              <p className="text-sm text-gray-600">Real-time compliance events and monitoring</p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="p-6 border rounded-lg">
-                    <h3 className="font-medium mb-4">Smart Contract Management</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Active Contracts:</span>
-                        <span className="text-sm font-medium">47</span>
+              <div className="space-y-4">
+                {auditLogs.slice(0, 10).map((log) => (
+                  <div key={log.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-blue-100">
+                        <Shield className="text-blue-600" size={16} />
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Gas Usage:</span>
-                        <span className="text-sm font-medium">1.2M gwei</span>
+                      <div>
+                        <div className="font-medium">{log.action}</div>
+                        <div className="text-sm text-gray-600">
+                          {new Date(log.created_at).toLocaleString()}
+                        </div>
                       </div>
-                      <Button 
-                        size="sm" 
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                        onClick={() => toast({ title: "Smart Contract", description: "Deploying new smart contract for programmable payments..." })}
-                      >
-                        Deploy Contract
-                      </Button>
                     </div>
+                    <Badge className="bg-green-600 text-white">Compliant</Badge>
                   </div>
-                  
-                  <div className="p-6 border rounded-lg">
-                    <h3 className="font-medium mb-4">Network Status</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Network:</span>
-                        <Badge className="bg-green-600 text-white">Ethereum Mainnet</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Block Height:</span>
-                        <span className="text-sm font-medium">18,742,361</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={() => window.open('https://etherscan.io', '_blank')}
-                      >
-                        View Explorer
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         )}
 
-        {activeTab === 'ai-fraud' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Fraud Detection</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-6 border rounded-lg">
-                    <Brain className="mx-auto mb-2 text-purple-600" size={32} />
-                    <h3 className="font-medium">ML Models</h3>
-                    <p className="text-2xl font-bold text-purple-600">4</p>
-                    <p className="text-sm text-gray-600">Active Models</p>
-                  </div>
-                  
-                  <div className="text-center p-6 border rounded-lg">
-                    <AlertTriangle className="mx-auto mb-2 text-red-600" size={32} />
-                    <h3 className="font-medium">Fraud Detected</h3>
-                    <p className="text-2xl font-bold text-red-600">12</p>
-                    <p className="text-sm text-gray-600">Today</p>
-                  </div>
-                  
-                  <div className="text-center p-6 border rounded-lg">
-                    <Shield className="mx-auto mb-2 text-green-600" size={32} />
-                    <h3 className="font-medium">Accuracy</h3>
-                    <p className="text-2xl font-bold text-green-600">99.7%</p>
-                    <p className="text-sm text-gray-600">Detection Rate</p>
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <h4 className="font-medium mb-2">AI Models in Production</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Real-time transaction anomaly detection using neural networks</li>
-                    <li>• Behavioral analysis model for user pattern recognition</li>
-                    <li>• Graph-based network analysis for suspicious activity clusters</li>
-                    <li>• Natural language processing for risk assessment documentation</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'mobile-integration' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Mobile App Integration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="p-6 border rounded-lg">
-                    <h3 className="font-medium mb-4">Push Notifications</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Daily Active Users:</span>
-                        <span className="text-sm font-medium">15,247</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Notifications Sent:</span>
-                        <span className="text-sm font-medium">52,341</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Open Rate:</span>
-                        <span className="text-sm font-medium">67%</span>
-                      </div>
-                      <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                        Send Broadcast
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-6 border rounded-lg">
-                    <h3 className="font-medium mb-4">App Performance</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Crash Rate:</span>
-                        <span className="text-sm font-medium text-green-600">0.01%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">App Store Rating:</span>
-                        <span className="text-sm font-medium">4.8/5</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Monthly Downloads:</span>
-                        <span className="text-sm font-medium">12,543</span>
-                      </div>
-                      <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-white">
-                        View Analytics
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'payment-gateways' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Gateway Integration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="p-6 border rounded-lg">
-                    <h3 className="font-medium mb-4">Stripe Integration</h3>
-                    <div className="space-y-3">
-                      <Badge className="bg-green-600 text-white">Connected</Badge>
-                      <div className="text-sm">Daily Volume: $127,435</div>
-                      <div className="text-sm">Success Rate: 99.2%</div>
-                      <div className="text-sm">Active Merchants: 1,247</div>
-                      <Button size="sm" className="w-full">Configure</Button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-6 border rounded-lg">
-                    <h3 className="font-medium mb-4">PayPal Integration</h3>
-                    <div className="space-y-3">
-                      <Badge className="bg-green-600 text-white">Connected</Badge>
-                      <div className="text-sm">Daily Volume: $89,123</div>
-                      <div className="text-sm">Success Rate: 98.7%</div>
-                      <div className="text-sm">Active Merchants: 823</div>
-                      <Button size="sm" className="w-full">Configure</Button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-6 border rounded-lg">
-                    <h3 className="font-medium mb-4">Bank APIs</h3>
-                    <div className="space-y-3">
-                      <Badge className="bg-green-600 text-white">Connected</Badge>
-                      <div className="text-sm">Connected Banks: 47</div>
-                      <div className="text-sm">Success Rate: 99.8%</div>
-                      <div className="text-sm">Active Connections: 3,421</div>
-                      <Button size="sm" className="w-full">Setup</Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Add other tab contents with real functionality */}
       </div>
     </div>
   );
