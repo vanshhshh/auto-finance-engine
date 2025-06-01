@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +23,9 @@ import {
   CreditCard,
   Brain,
   BarChart3,
-  Scale
+  Scale,
+  Download,
+  Eye
 } from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,14 +34,42 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { systemControls, allUsers, auditLogs } = useAdminData();
   const { toast } = useToast();
+  const [kycDocuments, setKycDocuments] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    fetchKYCDocuments();
+  }, []);
+
+  const fetchKYCDocuments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('kyc_documents')
+        .select(`
+          *,
+          profiles!inner(
+            user_id,
+            wallet_address,
+            kyc_status,
+            country_of_residence,
+            nationality
+          )
+        `)
+        .order('upload_date', { ascending: false });
+
+      if (error) throw error;
+      setKycDocuments(data || []);
+    } catch (error) {
+      console.error('Error fetching KYC documents:', error);
+    }
+  };
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'user-management', label: 'User Management', icon: Users },
+    { id: 'kyc-verification', label: 'KYC Verification', icon: FileText },
     { id: 'admin-controls', label: 'Admin Controls', icon: Settings },
     { id: 'wallet-management', label: 'Wallet Management', icon: Wallet },
     { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
-    { id: 'kyc-verification', label: 'KYC Verification', icon: FileText },
     { id: 'blockchain-integration', label: 'Blockchain Integration', icon: Globe },
     { id: 'mobile-integration', label: 'Mobile Integration', icon: Smartphone },
     { id: 'payment-gateway', label: 'Payment Gateway', icon: CreditCard },
@@ -61,11 +90,23 @@ const AdminDashboard = () => {
 
       if (error) throw error;
 
+      // Update KYC documents status
+      await supabase
+        .from('kyc_documents')
+        .update({ 
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: 'admin'
+        })
+        .eq('user_id', userId);
+
       toast({
         title: "User Approved",
         description: "User has been approved successfully.",
         className: "bg-blue-600 text-white border-blue-700",
       });
+
+      fetchKYCDocuments();
     } catch (error) {
       toast({
         title: "Error",
@@ -75,7 +116,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const rejectUser = async (userId: string) => {
+  const rejectUser = async (userId: string, reason?: string) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -87,15 +128,53 @@ const AdminDashboard = () => {
 
       if (error) throw error;
 
+      // Update KYC documents status
+      await supabase
+        .from('kyc_documents')
+        .update({ 
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: 'admin',
+          admin_notes: reason || 'Documents rejected by admin'
+        })
+        .eq('user_id', userId);
+
       toast({
         title: "User Rejected",
         description: "User has been rejected.",
         variant: "destructive",
       });
+
+      fetchKYCDocuments();
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to reject user.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const downloadDocument = async (filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('kyc-documents')
+        .download(filePath);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filePath.split('/').pop() || 'document.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Could not download the document.",
         variant: "destructive",
       });
     }
@@ -160,7 +239,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {allUsers.filter(u => u.kyc_status === 'pending' || u.kyc_status === 'under_review').length}
+                  {kycDocuments.filter(doc => doc.status === 'pending' || doc.status === 'under_review').length}
                 </div>
                 <p className="text-xs text-muted-foreground">Awaiting review</p>
               </CardContent>
@@ -192,6 +271,102 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {activeTab === 'kyc-verification' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>KYC Document Review</CardTitle>
+              <p className="text-sm text-gray-600">Review and approve user KYC documents</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {kycDocuments.map((doc) => (
+                  <div key={doc.id} className="p-6 border rounded-lg bg-white">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <div className="font-medium">User: {doc.profiles?.wallet_address}</div>
+                        <div className="text-sm text-gray-600">
+                          Document: {doc.document_type.replace('_', ' ').toUpperCase()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Uploaded: {new Date(doc.upload_date).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${
+                          doc.status === 'approved' ? 'bg-green-600' :
+                          doc.status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
+                        } text-white`}>
+                          {doc.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <span className="text-gray-600">Country:</span> {doc.profiles?.country_of_residence || 'Not specified'}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Nationality:</span> {doc.profiles?.nationality || 'Not specified'}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">File:</span> {doc.file_name}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">KYC Status:</span> {doc.profiles?.kyc_status || 'pending'}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => downloadDocument(doc.file_path)}
+                      >
+                        <Download size={16} className="mr-1" />
+                        Download
+                      </Button>
+                      
+                      {doc.status === 'pending' && (
+                        <>
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => approveUser(doc.user_id)}
+                          >
+                            <CheckCircle size={16} className="mr-1" />
+                            Approve
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => rejectUser(doc.user_id, 'Document quality insufficient')}
+                          >
+                            <XCircle size={16} className="mr-1" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    {doc.admin_notes && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded">
+                        <strong>Admin Notes:</strong> {doc.admin_notes}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                {kycDocuments.length === 0 && (
+                  <div className="text-center py-8 text-gray-600">
+                    <FileText size={48} className="mx-auto mb-4 text-gray-400" />
+                    <p>No KYC documents to review</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {activeTab === 'user-management' && (
           <Card>
             <CardHeader>
@@ -210,6 +385,13 @@ const AdminDashboard = () => {
                           user.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
                         } text-white`}>
                           {user.kyc_status?.toUpperCase() || 'PENDING'}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Wallet: <Badge className={`${
+                          user.wallet_approved ? 'bg-green-600' : 'bg-gray-600'
+                        } text-white`}>
+                          {user.wallet_approved ? 'APPROVED' : 'PENDING'}
                         </Badge>
                       </div>
                     </div>
@@ -335,44 +517,6 @@ const AdminDashboard = () => {
                   <div className="text-2xl font-bold text-purple-600">₹45,670</div>
                   <div className="text-sm text-gray-600">Total Volume Today</div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'kyc-verification' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>KYC Verification</CardTitle>
-              <p className="text-sm text-gray-600">Review and approve user KYC documents</p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {allUsers.filter(u => u.kyc_status === 'under_review' || u.kyc_status === 'pending').map((user) => (
-                  <div key={user.id} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <div className="font-medium">User: {user.wallet_address}</div>
-                        <div className="text-sm text-gray-600">
-                          Status: <Badge className="bg-orange-600 text-white">{user.kyc_status?.toUpperCase()}</Badge>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                          Review Documents
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Country:</span> {user.country_of_residence || 'Not specified'}
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Nationality:</span> {user.nationality || 'Not specified'}
-                      </div>
-                    </div>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>

@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Receipt, QrCode, ArrowUpRight, ArrowDownLeft, LogOut, Bell, Settings, Zap } from 'lucide-react';
+import { Wallet, Send, Receipt, QrCode, ArrowUpRight, ArrowDownLeft, LogOut, Bell, Settings, Zap, AlertCircle } from 'lucide-react';
 import { useWalletData } from '@/hooks/useWalletData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +12,6 @@ import QRPaymentSystem from './QRPaymentSystem';
 import UserSettings from './UserSettings';
 import RuleBuilder from './RuleBuilder';
 import TransferPage from './TransferPage';
-import KYCOnboarding from './KYCOnboarding';
 
 const WalletDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
@@ -52,52 +50,23 @@ const WalletDashboard = () => {
   };
 
   const openTransactionModal = (type: 'send' | 'receive') => {
+    if (!profile?.kyc_status || profile.kyc_status !== 'approved') {
+      toast({
+        title: "KYC Required",
+        description: "Please complete KYC verification to access wallet features.",
+        variant: "destructive",
+      });
+      setActiveTab('settings');
+      return;
+    }
     setTransactionType(type);
     setShowTransactionModal(true);
   };
 
-  // Check if user needs KYC
-  if (!profile?.kyc_status || profile.kyc_status === 'pending') {
-    return <KYCOnboarding />;
-  }
-
-  if (profile.kyc_status === 'under_review') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center">KYC Under Review</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">
-              Your KYC documents are being reviewed. This typically takes 1-3 business days.
-            </p>
-            <Badge className="bg-orange-600 text-white">Under Review</Badge>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (profile.kyc_status === 'rejected') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center text-red-600">KYC Rejected</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">
-              Your KYC verification was rejected. Please contact support or resubmit your documents.
-            </p>
-            <Button onClick={() => setActiveTab('settings')} className="bg-blue-600 hover:bg-blue-700">
-              Resubmit Documents
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const isKYCRequired = !profile?.kyc_status || profile.kyc_status === 'pending';
+  const isKYCUnderReview = profile?.kyc_status === 'under_review';
+  const isKYCRejected = profile?.kyc_status === 'rejected';
+  const isKYCApproved = profile?.kyc_status === 'approved';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -114,7 +83,9 @@ const WalletDashboard = () => {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm text-gray-600">Total Portfolio Value</p>
-              <p className="text-2xl font-bold text-green-600">${totalBalance.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-green-600">
+                {isKYCApproved ? `$${totalBalance.toFixed(2)}` : '$0.00'}
+              </p>
             </div>
             <div className="relative">
               <Button variant="outline" size="icon" className="relative">
@@ -144,6 +115,29 @@ const WalletDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* KYC Status Banner */}
+      {!isKYCApproved && (
+        <div className="bg-orange-50 border-b border-orange-200 px-6 py-3">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-orange-600" size={20} />
+            <div>
+              <p className="text-orange-800 font-medium">
+                {isKYCRequired && "Complete your KYC verification to access wallet features"}
+                {isKYCUnderReview && "Your KYC is under review. You'll have access once approved."}
+                {isKYCRejected && "Your KYC was rejected. Please resubmit your documents."}
+              </p>
+              <Button 
+                onClick={() => setActiveTab('settings')} 
+                variant="link" 
+                className="text-orange-600 p-0 h-auto"
+              >
+                {isKYCRequired ? "Start KYC Process" : "View Status"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings Dropdown */}
       {showSettings && (
@@ -184,18 +178,32 @@ const WalletDashboard = () => {
           <nav className="flex space-x-4 overflow-x-auto py-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const isDisabled = !isKYCApproved && (tab.id === 'transfer' || tab.id === 'qr-payments' || tab.id === 'programmable-rules');
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    if (isDisabled) {
+                      toast({
+                        title: "KYC Required",
+                        description: "Please complete KYC verification to access this feature.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setActiveTab(tab.id);
+                  }}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-all ${
                     activeTab === tab.id
                       ? 'border-blue-600 text-blue-600 bg-blue-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : isDisabled 
+                        ? 'border-transparent text-gray-400 cursor-not-allowed'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   <Icon size={16} />
                   {tab.label}
+                  {isDisabled && <AlertCircle size={12} className="text-orange-500" />}
                 </button>
               );
             })}
@@ -222,43 +230,64 @@ const WalletDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Button 
                 onClick={() => openTransactionModal('send')}
-                className="p-6 h-auto flex-col bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={!isKYCApproved}
+                className="p-6 h-auto flex-col bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
               >
                 <Send className="mb-2" size={24} />
                 <span>Send Money</span>
+                {!isKYCApproved && <span className="text-xs mt-1">KYC Required</span>}
               </Button>
               
               <Button 
                 onClick={() => openTransactionModal('receive')}
+                disabled={!isKYCApproved}
                 variant="outline"
-                className="p-6 h-auto flex-col border-green-600 text-green-600 hover:bg-green-50"
+                className="p-6 h-auto flex-col border-green-600 text-green-600 hover:bg-green-50 disabled:border-gray-400 disabled:text-gray-400"
               >
                 <ArrowDownLeft className="mb-2" size={24} />
                 <span>Request Payment</span>
+                {!isKYCApproved && <span className="text-xs mt-1">KYC Required</span>}
               </Button>
               
               <Button 
-                onClick={() => setActiveTab('qr-payments')}
+                onClick={() => isKYCApproved ? setActiveTab('qr-payments') : openTransactionModal('send')}
+                disabled={!isKYCApproved}
                 variant="outline"
-                className="p-6 h-auto flex-col border-purple-600 text-purple-600 hover:bg-purple-50"
+                className="p-6 h-auto flex-col border-purple-600 text-purple-600 hover:bg-purple-50 disabled:border-gray-400 disabled:text-gray-400"
               >
                 <QrCode className="mb-2" size={24} />
                 <span>QR Payment</span>
+                {!isKYCApproved && <span className="text-xs mt-1">KYC Required</span>}
               </Button>
             </div>
 
             {/* Token Balances */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {balances.map((balance) => (
-                <TokenBalance 
-                  key={balance.id} 
-                  balance={{
-                    ...balance,
-                    balance: balance.balance.toString()
-                  }} 
-                />
-              ))}
-            </div>
+            {isKYCApproved ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {balances.map((balance) => (
+                  <TokenBalance 
+                    key={balance.id} 
+                    balance={{
+                      ...balance,
+                      balance: balance.balance.toString()
+                    }} 
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Wallet size={48} className="mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Complete KYC to Access Wallets</h3>
+                  <p className="text-gray-600 mb-4">
+                    Your digital wallets will be available once your identity verification is complete.
+                  </p>
+                  <Button onClick={() => setActiveTab('settings')} className="bg-blue-600 hover:bg-blue-700">
+                    Start KYC Process
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Recent Activity */}
             <Card>
@@ -268,27 +297,94 @@ const WalletDashboard = () => {
                   variant="outline" 
                   size="sm"
                   onClick={() => setActiveTab('transactions')}
+                  disabled={!isKYCApproved}
                 >
                   View All
                 </Button>
               </CardHeader>
               <CardContent>
+                {isKYCApproved ? (
+                  <div className="space-y-4">
+                    {recentTransactions.map((tx) => (
+                      <div key={tx.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${
+                            tx.transaction_type === 'send' ? 'bg-red-100' : 'bg-green-100'
+                          }`}>
+                            {tx.transaction_type === 'send' ? 
+                              <ArrowUpRight className="text-red-600" size={16} /> : 
+                              <ArrowDownLeft className="text-green-600" size={16} />
+                            }
+                          </div>
+                          <div>
+                            <div className="font-medium capitalize">{tx.transaction_type}</div>
+                            <div className="text-sm text-gray-600">
+                              {new Date(tx.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`font-medium ${
+                            tx.transaction_type === 'send' ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {tx.transaction_type === 'send' ? '-' : '+'}
+                            {tx.amount} {tx.token_symbol}
+                          </div>
+                          <Badge className={`${
+                            tx.status === 'completed' ? 'bg-green-600' :
+                            tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
+                          } text-white`}>
+                            {tx.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                    {recentTransactions.length === 0 && (
+                      <div className="text-center py-8 text-gray-600">
+                        <Receipt size={48} className="mx-auto mb-4 text-gray-400" />
+                        <p>No transactions yet</p>
+                        <p className="text-sm">Start sending or receiving money to see your activity here</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-600">
+                    <Receipt size={48} className="mx-auto mb-4 text-gray-400" />
+                    <p>Transaction history will appear here after KYC approval</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'transfer' && <TransferPage />}
+        {activeTab === 'transactions' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isKYCApproved ? (
                 <div className="space-y-4">
-                  {recentTransactions.map((tx) => (
-                    <div key={tx.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-full ${
+                  {transactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-full ${
                           tx.transaction_type === 'send' ? 'bg-red-100' : 'bg-green-100'
                         }`}>
                           {tx.transaction_type === 'send' ? 
-                            <ArrowUpRight className="text-red-600" size={16} /> : 
-                            <ArrowDownLeft className="text-green-600" size={16} />
+                            <ArrowUpRight className="text-red-600" size={20} /> : 
+                            <ArrowDownLeft className="text-green-600" size={20} />
                           }
                         </div>
                         <div>
                           <div className="font-medium capitalize">{tx.transaction_type}</div>
                           <div className="text-sm text-gray-600">
-                            {new Date(tx.created_at).toLocaleDateString()}
+                            To: {tx.to_address.slice(0, 10)}...{tx.to_address.slice(-8)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(tx.created_at).toLocaleString()}
                           </div>
                         </div>
                       </div>
@@ -303,82 +399,30 @@ const WalletDashboard = () => {
                           tx.status === 'completed' ? 'bg-green-600' :
                           tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
                         } text-white`}>
-                          {tx.status}
+                          {tx.status.toUpperCase()}
                         </Badge>
+                        {tx.tx_hash && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Hash: {tx.tx_hash.slice(0, 8)}...
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
-                  {recentTransactions.length === 0 && (
-                    <div className="text-center py-8 text-gray-600">
+                  {transactions.length === 0 && (
+                    <div className="text-center py-12 text-gray-600">
                       <Receipt size={48} className="mx-auto mb-4 text-gray-400" />
-                      <p>No transactions yet</p>
-                      <p className="text-sm">Start sending or receiving money to see your activity here</p>
+                      <p>No transaction history</p>
+                      <p className="text-sm">Your completed transactions will appear here</p>
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {activeTab === 'transfer' && <TransferPage />}
-        {activeTab === 'transactions' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Transaction History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {transactions.map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-full ${
-                        tx.transaction_type === 'send' ? 'bg-red-100' : 'bg-green-100'
-                      }`}>
-                        {tx.transaction_type === 'send' ? 
-                          <ArrowUpRight className="text-red-600" size={20} /> : 
-                          <ArrowDownLeft className="text-green-600" size={20} />
-                        }
-                      </div>
-                      <div>
-                        <div className="font-medium capitalize">{tx.transaction_type}</div>
-                        <div className="text-sm text-gray-600">
-                          To: {tx.to_address.slice(0, 10)}...{tx.to_address.slice(-8)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(tx.created_at).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`font-medium ${
-                        tx.transaction_type === 'send' ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        {tx.transaction_type === 'send' ? '-' : '+'}
-                        {tx.amount} {tx.token_symbol}
-                      </div>
-                      <Badge className={`${
-                        tx.status === 'completed' ? 'bg-green-600' :
-                        tx.status === 'failed' ? 'bg-red-600' : 'bg-orange-600'
-                      } text-white`}>
-                        {tx.status.toUpperCase()}
-                      </Badge>
-                      {tx.tx_hash && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Hash: {tx.tx_hash.slice(0, 8)}...
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {transactions.length === 0 && (
-                  <div className="text-center py-12 text-gray-600">
-                    <Receipt size={48} className="mx-auto mb-4 text-gray-400" />
-                    <p>No transaction history</p>
-                    <p className="text-sm">Your completed transactions will appear here</p>
-                  </div>
-                )}
-              </div>
+              ) : (
+                <div className="text-center py-12 text-gray-600">
+                  <Receipt size={48} className="mx-auto mb-4 text-gray-400" />
+                  <p>Complete KYC to view transaction history</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

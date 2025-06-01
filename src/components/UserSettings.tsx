@@ -7,13 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { User, Upload, FileText, CheckCircle, X, Download as DownloadIcon } from 'lucide-react';
+import { User, Upload, FileText, CheckCircle, X, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useWalletData } from '@/hooks/useWalletData';
 
 const UserSettings = () => {
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState('kyc');
   const [uploading, setUploading] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
   const { user } = useAuth();
@@ -87,7 +87,7 @@ const UserSettings = () => {
 
       if (dbError) throw dbError;
 
-      // Update profile
+      // Update profile to indicate documents uploaded
       await supabase
         .from('profiles')
         .update({ 
@@ -117,6 +117,15 @@ const UserSettings = () => {
   const updatePersonalInfo = async () => {
     if (!user) return;
 
+    if (!personalInfo.country_of_residence || !personalInfo.nationality) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('profiles')
@@ -143,6 +152,18 @@ const UserSettings = () => {
     const doc = uploadedDocs.find(d => d.document_type === docType);
     return doc?.status || 'not_uploaded';
   };
+
+  const requiredDocuments = [
+    { type: 'passport', label: 'Passport', required: true },
+    { type: 'national_id', label: 'National ID/Driver\'s License', required: true },
+    { type: 'proof_of_address', label: 'Proof of Address', required: true },
+  ];
+
+  const allRequiredDocsUploaded = requiredDocuments.every(doc => 
+    getDocumentStatus(doc.type) !== 'not_uploaded'
+  );
+
+  const canProceedToKYC = personalInfo.country_of_residence && personalInfo.nationality;
 
   const renderFileUpload = (documentType: string, label: string, required = false) => {
     const status = getDocumentStatus(documentType);
@@ -174,17 +195,18 @@ const UserSettings = () => {
             }}
             className="hidden"
             id={`upload-${documentType}`}
-            disabled={uploading || status === 'approved'}
+            disabled={uploading || status === 'approved' || !canProceedToKYC}
           />
           <label
             htmlFor={`upload-${documentType}`}
             className={`flex flex-col items-center justify-center cursor-pointer ${
-              status === 'approved' ? 'opacity-50 cursor-not-allowed' : ''
+              status === 'approved' || !canProceedToKYC ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
             <Upload className="h-8 w-8 text-gray-400 mb-2" />
             <span className="text-sm text-gray-600">
-              {status === 'approved' ? 'Document Approved' : 
+              {!canProceedToKYC ? 'Complete personal info first' :
+               status === 'approved' ? 'Document Approved' : 
                status === 'pending' ? 'Under Review' :
                status === 'rejected' ? 'Rejected - Upload Again' :
                'Click to upload PDF'}
@@ -202,12 +224,25 @@ const UserSettings = () => {
   };
 
   const tabs = [
-    { id: 'profile', label: 'Profile Information', icon: User },
     { id: 'kyc', label: 'KYC Verification', icon: FileText },
+    { id: 'profile', label: 'Profile Information', icon: User },
   ];
 
   return (
     <div className="space-y-6 bg-white min-h-screen p-6">
+      {/* KYC Status Alert */}
+      {profile?.kyc_status === 'pending' && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-orange-600" size={20} />
+            <div>
+              <h3 className="font-medium text-orange-800">Complete Your KYC Verification</h3>
+              <p className="text-orange-700 text-sm">You need to complete KYC verification to access wallet features.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -228,82 +263,125 @@ const UserSettings = () => {
         })}
       </div>
 
-      {activeTab === 'profile' && (
-        <Card className="bg-white border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-gray-900">Personal Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="country" className="text-gray-700">Country of Residence</Label>
-                <Select 
-                  value={personalInfo.country_of_residence} 
-                  onValueChange={(value) => setPersonalInfo({...personalInfo, country_of_residence: value})}
-                >
-                  <SelectTrigger className="bg-white border-gray-300">
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="IN">India</SelectItem>
-                    <SelectItem value="US">United States</SelectItem>
-                    <SelectItem value="AE">United Arab Emirates</SelectItem>
-                    <SelectItem value="GB">United Kingdom</SelectItem>
-                    <SelectItem value="CA">Canada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="nationality" className="text-gray-700">Nationality</Label>
-                <Select 
-                  value={personalInfo.nationality} 
-                  onValueChange={(value) => setPersonalInfo({...personalInfo, nationality: value})}
-                >
-                  <SelectTrigger className="bg-white border-gray-300">
-                    <SelectValue placeholder="Select nationality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Indian">Indian</SelectItem>
-                    <SelectItem value="American">American</SelectItem>
-                    <SelectItem value="Emirati">Emirati</SelectItem>
-                    <SelectItem value="British">British</SelectItem>
-                    <SelectItem value="Canadian">Canadian</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <Button onClick={updatePersonalInfo} className="bg-blue-600 hover:bg-blue-700 text-white">
-              Update Information
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {activeTab === 'kyc' && (
         <div className="space-y-6">
+          {/* Step 1: Personal Information */}
           <Card className="bg-white border-gray-200">
             <CardHeader>
               <CardTitle className="text-gray-900 flex items-center gap-2">
-                <FileText size={20} />
-                KYC Document Upload
+                <div className="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-sm">1</div>
+                Personal Information
+              </CardTitle>
+              <div className="text-sm text-gray-600">
+                Provide your personal details to begin KYC verification.
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="country" className="text-gray-700">Country of Residence *</Label>
+                  <Select 
+                    value={personalInfo.country_of_residence} 
+                    onValueChange={(value) => setPersonalInfo({...personalInfo, country_of_residence: value})}
+                  >
+                    <SelectTrigger className="bg-white border-gray-300">
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="IN">India</SelectItem>
+                      <SelectItem value="US">United States</SelectItem>
+                      <SelectItem value="AE">United Arab Emirates</SelectItem>
+                      <SelectItem value="GB">United Kingdom</SelectItem>
+                      <SelectItem value="CA">Canada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="nationality" className="text-gray-700">Nationality *</Label>
+                  <Select 
+                    value={personalInfo.nationality} 
+                    onValueChange={(value) => setPersonalInfo({...personalInfo, nationality: value})}
+                  >
+                    <SelectTrigger className="bg-white border-gray-300">
+                      <SelectValue placeholder="Select nationality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Indian">Indian</SelectItem>
+                      <SelectItem value="American">American</SelectItem>
+                      <SelectItem value="Emirati">Emirati</SelectItem>
+                      <SelectItem value="British">British</SelectItem>
+                      <SelectItem value="Canadian">Canadian</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button 
+                onClick={updatePersonalInfo} 
+                disabled={!personalInfo.country_of_residence || !personalInfo.nationality}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Save Information
+              </Button>
+
+              {canProceedToKYC && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <CheckCircle size={16} />
+                    <span className="font-medium">Step 1 Complete</span>
+                  </div>
+                  <div className="text-sm text-green-700 mt-1">
+                    Personal information saved. You can now upload documents.
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Step 2: Document Upload */}
+          <Card className="bg-white border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-gray-900 flex items-center gap-2">
+                <div className={`flex items-center justify-center w-6 h-6 rounded-full text-sm ${
+                  canProceedToKYC ? 'bg-blue-600 text-white' : 'bg-gray-400 text-white'
+                }`}>2</div>
+                Document Upload
               </CardTitle>
               <div className="text-sm text-gray-600">
                 Upload required documents for verification. All documents must be in PDF format.
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {renderFileUpload('passport', 'Passport', true)}
-              {renderFileUpload('national_id', 'National ID/Driver\'s License', true)}
-              {renderFileUpload('proof_of_address', 'Proof of Address (Utility Bill)', true)}
-              {renderFileUpload('bank_statement', 'Bank Statement (Last 3 months)')}
+              {requiredDocuments.map(doc => 
+                renderFileUpload(doc.type, doc.label, doc.required)
+              )}
+
+              {allRequiredDocsUploaded && canProceedToKYC && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <CheckCircle size={16} />
+                    <span className="font-medium">All Documents Uploaded</span>
+                  </div>
+                  <div className="text-sm text-green-700 mt-1">
+                    Your documents have been submitted for review. This typically takes 1-3 business days.
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
+          {/* Step 3: Verification Status */}
           <Card className="bg-white border-gray-200">
             <CardHeader>
-              <CardTitle className="text-gray-900">KYC Status</CardTitle>
+              <CardTitle className="text-gray-900 flex items-center gap-2">
+                <div className={`flex items-center justify-center w-6 h-6 rounded-full text-sm ${
+                  profile?.kyc_status === 'approved' ? 'bg-green-600 text-white' :
+                  profile?.kyc_status === 'under_review' ? 'bg-orange-600 text-white' :
+                  'bg-gray-400 text-white'
+                }`}>3</div>
+                Verification Status
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-3">
@@ -323,7 +401,7 @@ const UserSettings = () => {
               </div>
               
               <div className="mt-4 text-sm text-gray-600">
-                {profile?.kyc_status === 'pending' && "Please upload all required documents to start the verification process."}
+                {profile?.kyc_status === 'pending' && "Please complete the steps above to start verification."}
                 {profile?.kyc_status === 'under_review' && "Your documents are being reviewed. This typically takes 1-3 business days."}
                 {profile?.kyc_status === 'approved' && "Your KYC verification is complete. You can now use all wallet features."}
                 {profile?.kyc_status === 'rejected' && "Your KYC verification was rejected. Please contact support or upload new documents."}
@@ -343,6 +421,20 @@ const UserSettings = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {activeTab === 'profile' && (
+        <Card className="bg-white border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-gray-900">Profile Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center py-8 text-gray-600">
+              <User size={48} className="mx-auto mb-4 text-gray-400" />
+              <p>Additional profile settings will be available here.</p>
+            </CardContent>
+          </Card>
+        </Card>
       )}
     </div>
   );
