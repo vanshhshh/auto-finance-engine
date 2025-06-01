@@ -37,10 +37,56 @@ export const useAdminData = () => {
       }
       
       console.log('Fetched users:', data);
-      return data;
+      return data || [];
     },
     enabled: isAdmin,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
+  });
+
+  const { data: kycDocuments = [] } = useQuery({
+    queryKey: ['kyc-documents'],
+    queryFn: async () => {
+      console.log('Fetching KYC documents...');
+      
+      // First get all KYC documents
+      const { data: docs, error: docsError } = await supabase
+        .from('kyc_documents')
+        .select('*')
+        .order('upload_date', { ascending: false });
+
+      if (docsError) {
+        console.error('Error fetching KYC documents:', docsError);
+        throw docsError;
+      }
+
+      console.log('Raw KYC documents:', docs);
+
+      // Then get all profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('All profiles:', profiles);
+
+      // Manually join the data
+      const documentsWithProfiles = (docs || []).map(doc => {
+        const profile = profiles?.find(p => p.user_id === doc.user_id);
+        return {
+          ...doc,
+          profiles: profile || null
+        };
+      });
+
+      console.log('Documents with profiles:', documentsWithProfiles);
+      return documentsWithProfiles;
+    },
+    enabled: isAdmin,
+    refetchInterval: 5000, // Refetch every 5 seconds
   });
 
   const { data: complianceEvents = [] } = useQuery({
@@ -96,6 +142,7 @@ export const useAdminData = () => {
     isAdmin,
     systemControls,
     allUsers,
+    kycDocuments,
     complianceEvents,
     auditLogs,
     failingRules,

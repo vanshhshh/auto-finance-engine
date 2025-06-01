@@ -33,85 +33,16 @@ import { supabase } from '@/integrations/supabase/client';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const { systemControls, allUsers, auditLogs } = useAdminData();
+  const { systemControls, allUsers, auditLogs, kycDocuments } = useAdminData();
   const { toast } = useToast();
-  const [kycDocuments, setKycDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Force refresh data every time the component mounts
   React.useEffect(() => {
-    fetchKYCDocuments();
-    fetchAllUsersWithKYC();
-  }, []);
-
-  const fetchKYCDocuments = async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching KYC documents...');
-      
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select(`
-          *,
-          profiles!inner(
-            user_id,
-            wallet_address,
-            kyc_status,
-            country_of_residence,
-            nationality
-          )
-        `)
-        .order('upload_date', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching KYC documents:', error);
-        throw error;
-      }
-      
-      console.log('KYC documents fetched:', data);
-      setKycDocuments(data || []);
-    } catch (error) {
-      console.error('Error fetching KYC documents:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch KYC documents.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAllUsersWithKYC = async () => {
-    try {
-      console.log('Fetching all users...');
-      
-      // Fetch all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-      } else {
-        console.log('All profiles:', profiles);
-      }
-
-      // Fetch all KYC documents separately
-      const { data: docs, error: docsError } = await supabase
-        .from('kyc_documents')
-        .select('*')
-        .order('upload_date', { ascending: false });
-
-      if (docsError) {
-        console.error('Error fetching documents:', docsError);
-      } else {
-        console.log('All KYC documents:', docs);
-      }
-    } catch (error) {
-      console.error('Error in fetchAllUsersWithKYC:', error);
-    }
-  };
+    console.log('AdminDashboard mounted, current data:');
+    console.log('All users:', allUsers);
+    console.log('KYC documents:', kycDocuments);
+  }, [allUsers, kycDocuments]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -161,9 +92,8 @@ const AdminDashboard = () => {
         className: "bg-blue-600 text-white border-blue-700",
       });
 
-      // Refresh data
-      await fetchKYCDocuments();
-      await fetchAllUsersWithKYC();
+      // Force refresh by invalidating queries
+      window.location.reload();
     } catch (error) {
       console.error('Error approving user:', error);
       toast({
@@ -210,9 +140,8 @@ const AdminDashboard = () => {
         variant: "destructive",
       });
 
-      // Refresh data
-      await fetchKYCDocuments();
-      await fetchAllUsersWithKYC();
+      // Force refresh by invalidating queries
+      window.location.reload();
     } catch (error) {
       console.error('Error rejecting user:', error);
       toast({
@@ -261,10 +190,7 @@ const AdminDashboard = () => {
             <p className="text-gray-600">Manage users, compliance, and system operations</p>
           </div>
           <Button 
-            onClick={() => {
-              fetchKYCDocuments();
-              fetchAllUsersWithKYC();
-            }}
+            onClick={() => window.location.reload()}
             variant="outline"
             className="flex items-center gap-2"
             disabled={loading}
@@ -374,7 +300,7 @@ const AdminDashboard = () => {
               )}
               
               <div className="space-y-6">
-                {kycDocuments.map((doc) => (
+                {kycDocuments.length > 0 ? kycDocuments.map((doc) => (
                   <div key={doc.id} className="p-6 border rounded-lg bg-white shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -462,13 +388,18 @@ const AdminDashboard = () => {
                       </div>
                     )}
                   </div>
-                ))}
-                
-                {kycDocuments.length === 0 && !loading && (
+                )) : (
                   <div className="text-center py-8 text-gray-600">
                     <FileText size={48} className="mx-auto mb-4 text-gray-400" />
-                    <p>No KYC documents to review</p>
+                    <p>No KYC documents found</p>
                     <p className="text-sm">Documents will appear here when users submit them</p>
+                    <Button 
+                      onClick={() => window.location.reload()} 
+                      variant="outline" 
+                      className="mt-4"
+                    >
+                      Refresh to check for new documents
+                    </Button>
                   </div>
                 )}
               </div>
@@ -488,7 +419,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {allUsers.map((user) => (
+                {allUsers.length > 0 ? allUsers.map((user) => (
                   <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium">{user.wallet_address || 'No Address'}</div>
@@ -536,7 +467,19 @@ const AdminDashboard = () => {
                       )}
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-8 text-gray-600">
+                    <Users size={48} className="mx-auto mb-4 text-gray-400" />
+                    <p>No users found</p>
+                    <Button 
+                      onClick={() => window.location.reload()} 
+                      variant="outline" 
+                      className="mt-4"
+                    >
+                      Refresh to check for users
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
