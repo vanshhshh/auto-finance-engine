@@ -30,24 +30,40 @@ import {
 } from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { supabase } from '@/integrations/supabase/client';
+import CBDCCountries from './CBDCCountries';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const { systemControls, allUsers, auditLogs, kycDocuments } = useAdminData();
+  const { systemControls, allUsers, auditLogs, kycDocuments, isLoading } = useAdminData();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  // Force refresh data every time the component mounts
-  React.useEffect(() => {
-    console.log('AdminDashboard mounted, current data:');
-    console.log('All users:', allUsers);
-    console.log('KYC documents:', kycDocuments);
-  }, [allUsers, kycDocuments]);
+  // Enhanced logging for debugging
+  useEffect(() => {
+    console.log('🔄 AdminDashboard data updated:');
+    console.log('👥 All users:', allUsers);
+    console.log('📄 KYC documents:', kycDocuments);
+    console.log('🔄 Is loading:', isLoading);
+    
+    // Specifically look for the target users
+    const targetUsers = allUsers.filter(user => 
+      user.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
+      user.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
+    );
+    console.log('🎯 Found target users:', targetUsers);
+    
+    const targetDocs = kycDocuments.filter(doc => 
+      doc.profiles?.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
+      doc.profiles?.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
+    );
+    console.log('🎯 Found target documents:', targetDocs);
+  }, [allUsers, kycDocuments, isLoading]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'user-management', label: 'User Management', icon: Users },
     { id: 'kyc-verification', label: 'KYC Verification', icon: FileText },
+    { id: 'cbdc-countries', label: 'CBDC Countries', icon: Globe },
     { id: 'admin-controls', label: 'Admin Controls', icon: Settings },
     { id: 'wallet-management', label: 'Wallet Management', icon: Wallet },
     { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
@@ -62,7 +78,7 @@ const AdminDashboard = () => {
   const approveUser = async (userId: string) => {
     try {
       setLoading(true);
-      console.log('Approving user:', userId);
+      console.log('✅ Approving user:', userId);
       
       const { error } = await supabase
         .from('profiles')
@@ -92,7 +108,7 @@ const AdminDashboard = () => {
         className: "bg-blue-600 text-white border-blue-700",
       });
 
-      // Force refresh by invalidating queries
+      // Force refresh
       window.location.reload();
     } catch (error) {
       console.error('Error approving user:', error);
@@ -109,7 +125,7 @@ const AdminDashboard = () => {
   const rejectUser = async (userId: string, reason?: string) => {
     try {
       setLoading(true);
-      console.log('Rejecting user:', userId);
+      console.log('❌ Rejecting user:', userId);
       
       const { error } = await supabase
         .from('profiles')
@@ -140,7 +156,7 @@ const AdminDashboard = () => {
         variant: "destructive",
       });
 
-      // Force refresh by invalidating queries
+      // Force refresh
       window.location.reload();
     } catch (error) {
       console.error('Error rejecting user:', error);
@@ -188,6 +204,12 @@ const AdminDashboard = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             <p className="text-gray-600">Manage users, compliance, and system operations</p>
+            {isLoading && (
+              <div className="flex items-center mt-2 text-blue-600">
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Loading fresh data...</span>
+              </div>
+            )}
           </div>
           <Button 
             onClick={() => window.location.reload()}
@@ -280,6 +302,8 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {activeTab === 'cbdc-countries' && <CBDCCountries />}
+
         {activeTab === 'kyc-verification' && (
           <Card>
             <CardHeader>
@@ -292,7 +316,7 @@ const AdminDashboard = () => {
               <p className="text-sm text-gray-600">Review and approve user KYC documents</p>
             </CardHeader>
             <CardContent>
-              {loading && (
+              {isLoading && (
                 <div className="flex items-center justify-center py-8">
                   <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
                   <span className="ml-2 text-gray-600">Loading documents...</span>
