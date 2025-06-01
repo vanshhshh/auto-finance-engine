@@ -25,7 +25,8 @@ import {
   BarChart3,
   Scale,
   Download,
-  Eye
+  Eye,
+  RefreshCw
 } from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,13 +36,18 @@ const AdminDashboard = () => {
   const { systemControls, allUsers, auditLogs } = useAdminData();
   const { toast } = useToast();
   const [kycDocuments, setKycDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
     fetchKYCDocuments();
+    fetchAllUsersWithKYC();
   }, []);
 
   const fetchKYCDocuments = async () => {
     try {
+      setLoading(true);
+      console.log('Fetching KYC documents...');
+      
       const { data, error } = await supabase
         .from('kyc_documents')
         .select(`
@@ -56,10 +62,54 @@ const AdminDashboard = () => {
         `)
         .order('upload_date', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching KYC documents:', error);
+        throw error;
+      }
+      
+      console.log('KYC documents fetched:', data);
       setKycDocuments(data || []);
     } catch (error) {
       console.error('Error fetching KYC documents:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch KYC documents.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllUsersWithKYC = async () => {
+    try {
+      console.log('Fetching all users...');
+      
+      // Fetch all profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      } else {
+        console.log('All profiles:', profiles);
+      }
+
+      // Fetch all KYC documents separately
+      const { data: docs, error: docsError } = await supabase
+        .from('kyc_documents')
+        .select('*')
+        .order('upload_date', { ascending: false });
+
+      if (docsError) {
+        console.error('Error fetching documents:', docsError);
+      } else {
+        console.log('All KYC documents:', docs);
+      }
+    } catch (error) {
+      console.error('Error in fetchAllUsersWithKYC:', error);
     }
   };
 
@@ -80,6 +130,9 @@ const AdminDashboard = () => {
 
   const approveUser = async (userId: string) => {
     try {
+      setLoading(true);
+      console.log('Approving user:', userId);
+      
       const { error } = await supabase
         .from('profiles')
         .update({ 
@@ -91,7 +144,7 @@ const AdminDashboard = () => {
       if (error) throw error;
 
       // Update KYC documents status
-      await supabase
+      const { error: docError } = await supabase
         .from('kyc_documents')
         .update({ 
           status: 'approved',
@@ -100,24 +153,34 @@ const AdminDashboard = () => {
         })
         .eq('user_id', userId);
 
+      if (docError) console.error('Error updating documents:', docError);
+
       toast({
         title: "User Approved",
         description: "User has been approved successfully.",
         className: "bg-blue-600 text-white border-blue-700",
       });
 
-      fetchKYCDocuments();
+      // Refresh data
+      await fetchKYCDocuments();
+      await fetchAllUsersWithKYC();
     } catch (error) {
+      console.error('Error approving user:', error);
       toast({
         title: "Error",
         description: "Failed to approve user.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const rejectUser = async (userId: string, reason?: string) => {
     try {
+      setLoading(true);
+      console.log('Rejecting user:', userId);
+      
       const { error } = await supabase
         .from('profiles')
         .update({ 
@@ -129,7 +192,7 @@ const AdminDashboard = () => {
       if (error) throw error;
 
       // Update KYC documents status
-      await supabase
+      const { error: docError } = await supabase
         .from('kyc_documents')
         .update({ 
           status: 'rejected',
@@ -139,19 +202,26 @@ const AdminDashboard = () => {
         })
         .eq('user_id', userId);
 
+      if (docError) console.error('Error updating documents:', docError);
+
       toast({
         title: "User Rejected",
         description: "User has been rejected.",
         variant: "destructive",
       });
 
-      fetchKYCDocuments();
+      // Refresh data
+      await fetchKYCDocuments();
+      await fetchAllUsersWithKYC();
     } catch (error) {
+      console.error('Error rejecting user:', error);
       toast({
         title: "Error",
         description: "Failed to reject user.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -172,6 +242,7 @@ const AdminDashboard = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
+      console.error('Download error:', error);
       toast({
         title: "Download Failed",
         description: "Could not download the document.",
@@ -189,6 +260,18 @@ const AdminDashboard = () => {
             <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             <p className="text-gray-600">Manage users, compliance, and system operations</p>
           </div>
+          <Button 
+            onClick={() => {
+              fetchKYCDocuments();
+              fetchAllUsersWithKYC();
+            }}
+            variant="outline"
+            className="flex items-center gap-2"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh Data
+          </Button>
         </div>
       </div>
 
@@ -274,21 +357,38 @@ const AdminDashboard = () => {
         {activeTab === 'kyc-verification' && (
           <Card>
             <CardHeader>
-              <CardTitle>KYC Document Review</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                KYC Document Review
+                <Badge variant="outline" className="text-sm">
+                  {kycDocuments.length} Documents
+                </Badge>
+              </CardTitle>
               <p className="text-sm text-gray-600">Review and approve user KYC documents</p>
             </CardHeader>
             <CardContent>
+              {loading && (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Loading documents...</span>
+                </div>
+              )}
+              
               <div className="space-y-6">
                 {kycDocuments.map((doc) => (
-                  <div key={doc.id} className="p-6 border rounded-lg bg-white">
+                  <div key={doc.id} className="p-6 border rounded-lg bg-white shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <div className="font-medium">User: {doc.profiles?.wallet_address}</div>
+                        <div className="font-medium text-lg">
+                          User: {doc.profiles?.wallet_address || 'No Address'}
+                        </div>
                         <div className="text-sm text-gray-600">
                           Document: {doc.document_type.replace('_', ' ').toUpperCase()}
                         </div>
                         <div className="text-xs text-gray-500">
                           Uploaded: {new Date(doc.upload_date).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          User ID: {doc.user_id}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -332,6 +432,7 @@ const AdminDashboard = () => {
                             size="sm" 
                             className="bg-green-600 hover:bg-green-700"
                             onClick={() => approveUser(doc.user_id)}
+                            disabled={loading}
                           >
                             <CheckCircle size={16} className="mr-1" />
                             Approve
@@ -340,6 +441,7 @@ const AdminDashboard = () => {
                             size="sm" 
                             variant="destructive"
                             onClick={() => rejectUser(doc.user_id, 'Document quality insufficient')}
+                            disabled={loading}
                           >
                             <XCircle size={16} className="mr-1" />
                             Reject
@@ -353,13 +455,20 @@ const AdminDashboard = () => {
                         <strong>Admin Notes:</strong> {doc.admin_notes}
                       </div>
                     )}
+
+                    {doc.reviewed_at && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        Reviewed: {new Date(doc.reviewed_at).toLocaleString()} by {doc.reviewed_by}
+                      </div>
+                    )}
                   </div>
                 ))}
                 
-                {kycDocuments.length === 0 && (
+                {kycDocuments.length === 0 && !loading && (
                   <div className="text-center py-8 text-gray-600">
                     <FileText size={48} className="mx-auto mb-4 text-gray-400" />
                     <p>No KYC documents to review</p>
+                    <p className="text-sm">Documents will appear here when users submit them</p>
                   </div>
                 )}
               </div>
@@ -370,7 +479,12 @@ const AdminDashboard = () => {
         {activeTab === 'user-management' && (
           <Card>
             <CardHeader>
-              <CardTitle>User Management</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                User Management
+                <Badge variant="outline" className="text-sm">
+                  {allUsers.length} Users
+                </Badge>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -378,6 +492,7 @@ const AdminDashboard = () => {
                   <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium">{user.wallet_address || 'No Address'}</div>
+                      <div className="text-sm text-gray-600">User ID: {user.user_id}</div>
                       <div className="text-sm text-gray-600">Role: {user.role}</div>
                       <div className="text-sm text-gray-600">
                         KYC: <Badge className={`${
@@ -394,6 +509,9 @@ const AdminDashboard = () => {
                           {user.wallet_approved ? 'APPROVED' : 'PENDING'}
                         </Badge>
                       </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Created: {new Date(user.created_at).toLocaleDateString()}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       {user.kyc_status !== 'approved' && (
@@ -401,6 +519,7 @@ const AdminDashboard = () => {
                           onClick={() => approveUser(user.user_id)}
                           size="sm" 
                           className="bg-green-600 hover:bg-green-700"
+                          disabled={loading}
                         >
                           Approve
                         </Button>
@@ -410,6 +529,7 @@ const AdminDashboard = () => {
                           onClick={() => rejectUser(user.user_id)}
                           size="sm" 
                           variant="destructive"
+                          disabled={loading}
                         >
                           Reject
                         </Button>
@@ -550,8 +670,6 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         )}
-
-        {/* Add other tab contents with real functionality */}
       </div>
     </div>
   );

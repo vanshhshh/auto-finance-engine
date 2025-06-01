@@ -25,18 +25,24 @@ export const useAdminData = () => {
   const { data: allUsers = [] } = useQuery({
     queryKey: ['all-users'],
     queryFn: async () => {
+      console.log('Fetching all users for admin...');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+      
+      console.log('Fetched users:', data);
       return data;
     },
     enabled: isAdmin,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Use audit_logs temporarily until compliance_events table is available in types
   const { data: complianceEvents = [] } = useQuery({
     queryKey: ['admin-audit-logs'],
     queryFn: async () => {
