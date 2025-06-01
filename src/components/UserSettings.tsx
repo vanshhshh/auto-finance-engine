@@ -432,8 +432,8 @@ const UserSettings = () => {
             <div className="text-center py-8 text-gray-600">
               <User size={48} className="mx-auto mb-4 text-gray-400" />
               <p>Additional profile settings will be available here.</p>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
         </Card>
       )}
     </div>
