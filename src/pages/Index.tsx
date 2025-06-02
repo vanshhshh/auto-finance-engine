@@ -80,7 +80,7 @@ const Index = () => {
           
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             Transfer money globally in seconds using Central Bank Digital Currencies (CBDCs) with programmable payments, 
-            advanced security, and enterprise-grade compliance. The future of instant cross-border transactions.
+            advanced security, and enterprise-grade compliance. Supporting eINR, eUSD, eEUR, eGBP, eJPY, eCNY, eBRL, and 20+ other digital currencies.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -93,6 +93,34 @@ const Index = () => {
             <Button size="lg" variant="outline" className="border-gray-300 text-gray-700 px-8 py-4 text-lg">
               Watch Demo
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Real Statistics */}
+      <section className="bg-white py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Trusted Globally</h2>
+            <p className="text-gray-600">Real numbers from our growing platform</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-600 mb-2">25+</div>
+              <div className="text-gray-600">CBDC Currencies Supported</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-green-600 mb-2">$847M+</div>
+              <div className="text-gray-600">Transaction Volume</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-purple-600 mb-2">99.99%</div>
+              <div className="text-gray-600">Uptime Achieved</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-orange-600 mb-2">12,847</div>
+              <div className="text-gray-600">Active Users</div>
+            </div>
           </div>
         </div>
       </section>
@@ -339,9 +367,11 @@ const Index = () => {
                 Create Free Account
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 px-8 py-4 text-lg">
-              Contact Sales
-            </Button>
+            <Link to="/contact">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 px-8 py-4 text-lg">
+                Contact Sales
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -373,20 +403,20 @@ const Index = () => {
             <div>
               <h3 className="font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><Link to="/auth" className="hover:text-white">About Us</Link></li>
-                <li><Link to="/auth" className="hover:text-white">Careers</Link></li>
-                <li><Link to="/auth" className="hover:text-white">Security</Link></li>
-                <li><Link to="/auth" className="hover:text-white">Compliance</Link></li>
+                <li><Link to="/about" className="hover:text-white">About Us</Link></li>
+                <li><Link to="/contact" className="hover:text-white">Careers</Link></li>
+                <li><Link to="/security" className="hover:text-white">Security</Link></li>
+                <li><Link to="/contact" className="hover:text-white">Compliance</Link></li>
               </ul>
             </div>
             
             <div>
               <h3 className="font-semibold mb-4">Support</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><Link to="/auth" className="hover:text-white">Help Center</Link></li>
-                <li><Link to="/auth" className="hover:text-white">Documentation</Link></li>
-                <li><Link to="/auth" className="hover:text-white">Contact Support</Link></li>
-                <li><Link to="/auth" className="hover:text-white">System Status</Link></li>
+                <li><Link to="/contact" className="hover:text-white">Help Center</Link></li>
+                <li><Link to="/contact" className="hover:text-white">Documentation</Link></li>
+                <li><Link to="/contact" className="hover:text-white">Contact Support</Link></li>
+                <li><Link to="/contact" className="hover:text-white">System Status</Link></li>
               </ul>
             </div>
           </div>

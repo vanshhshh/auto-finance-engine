@@ -26,17 +26,29 @@ import {
   Scale,
   Download,
   Eye,
-  RefreshCw
+  RefreshCw,
+  LogOut
 } from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { supabase } from '@/integrations/supabase/client';
 import CBDCCountries from './CBDCCountries';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { systemControls, allUsers, auditLogs, kycDocuments, isLoading } = useAdminData();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   // Enhanced logging for debugging
   useEffect(() => {
@@ -84,19 +96,19 @@ const AdminDashboard = () => {
         .from('profiles')
         .update({ 
           wallet_approved: true,
-          kyc_status: 'approved'
+          kyc_status: 'approved',
+          approved_tokens: ['eINR', 'eUSD', 'eAED', 'eEUR', 'eGBP', 'eJPY', 'eCAD', 'eAUD', 'eSEK', 'eCNY', 'eBRL', 'eRUB', 'eKRW', 'eTRY', 'eSAR', 'eGHS', 'eNGN', 'eJMD', 'eBSD', 'eXCD']
         })
         .eq('user_id', userId);
 
       if (error) throw error;
 
-      // Update KYC documents status
       const { error: docError } = await supabase
         .from('kyc_documents')
         .update({ 
           status: 'approved',
           reviewed_at: new Date().toISOString(),
-          reviewed_by: 'admin'
+          reviewed_by: user?.id || 'admin'
         })
         .eq('user_id', userId);
 
@@ -104,11 +116,10 @@ const AdminDashboard = () => {
 
       toast({
         title: "User Approved",
-        description: "User has been approved successfully.",
-        className: "bg-blue-600 text-white border-blue-700",
+        description: "User has been approved and all CBDC wallets activated.",
+        className: "bg-green-600 text-white border-green-700",
       });
 
-      // Force refresh
       window.location.reload();
     } catch (error) {
       console.error('Error approving user:', error);
@@ -131,19 +142,19 @@ const AdminDashboard = () => {
         .from('profiles')
         .update({ 
           wallet_approved: false,
-          kyc_status: 'rejected'
+          kyc_status: 'rejected',
+          approved_tokens: []
         })
         .eq('user_id', userId);
 
       if (error) throw error;
 
-      // Update KYC documents status
       const { error: docError } = await supabase
         .from('kyc_documents')
         .update({ 
           status: 'rejected',
           reviewed_at: new Date().toISOString(),
-          reviewed_by: 'admin',
+          reviewed_by: user?.id || 'admin',
           admin_notes: reason || 'Documents rejected by admin'
         })
         .eq('user_id', userId);
@@ -156,7 +167,6 @@ const AdminDashboard = () => {
         variant: "destructive",
       });
 
-      // Force refresh
       window.location.reload();
     } catch (error) {
       console.error('Error rejecting user:', error);
@@ -211,15 +221,25 @@ const AdminDashboard = () => {
               </div>
             )}
           </div>
-          <Button 
-            onClick={() => window.location.reload()}
-            variant="outline"
-            className="flex items-center gap-2"
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Data
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button 
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Data
+            </Button>
+            <Button 
+              onClick={handleSignOut}
+              variant="outline"
+              className="flex items-center gap-2 text-red-600 border-red-600 hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -258,7 +278,7 @@ const AdminDashboard = () => {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{allUsers.length}</div>
+                <div className="text-2xl font-bold">{allUsers?.length || 0}</div>
                 <p className="text-xs text-muted-foreground">Active users</p>
               </CardContent>
             </Card>
@@ -270,7 +290,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {kycDocuments.filter(doc => doc.status === 'pending' || doc.status === 'under_review').length}
+                  {kycDocuments?.filter(doc => doc.status === 'pending' || doc.status === 'under_review').length || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">Awaiting review</p>
               </CardContent>
@@ -283,7 +303,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {allUsers.filter(u => u.wallet_approved).length}
+                  {allUsers?.filter(u => u.wallet_approved).length || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">Active wallets</p>
               </CardContent>
@@ -310,7 +330,7 @@ const AdminDashboard = () => {
               <CardTitle className="flex items-center justify-between">
                 KYC Document Review
                 <Badge variant="outline" className="text-sm">
-                  {kycDocuments.length} Documents
+                  {kycDocuments?.length || 0} Documents
                 </Badge>
               </CardTitle>
               <p className="text-sm text-gray-600">Review and approve user KYC documents</p>
@@ -324,7 +344,7 @@ const AdminDashboard = () => {
               )}
               
               <div className="space-y-6">
-                {kycDocuments.length > 0 ? kycDocuments.map((doc) => (
+                {kycDocuments && kycDocuments.length > 0 ? kycDocuments.map((doc) => (
                   <div key={doc.id} className="p-6 border rounded-lg bg-white shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -346,7 +366,7 @@ const AdminDashboard = () => {
                           doc.status === 'approved' ? 'bg-green-600' :
                           doc.status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
                         } text-white`}>
-                          {doc.status.toUpperCase()}
+                          {doc.status?.toUpperCase() || 'PENDING'}
                         </Badge>
                       </div>
                     </div>
@@ -437,13 +457,13 @@ const AdminDashboard = () => {
               <CardTitle className="flex items-center justify-between">
                 User Management
                 <Badge variant="outline" className="text-sm">
-                  {allUsers.length} Users
+                  {allUsers?.length || 0} Users
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {allUsers.length > 0 ? allUsers.map((user) => (
+                {allUsers && allUsers.length > 0 ? allUsers.map((user) => (
                   <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium">{user.wallet_address || 'No Address'}</div>
@@ -467,6 +487,11 @@ const AdminDashboard = () => {
                       <div className="text-xs text-gray-500 mt-1">
                         Created: {new Date(user.created_at).toLocaleDateString()}
                       </div>
+                      {user.approved_tokens && user.approved_tokens.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Approved Tokens: {user.approved_tokens.join(', ')}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       {user.kyc_status !== 'approved' && (

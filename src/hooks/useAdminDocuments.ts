@@ -8,63 +8,33 @@ export const useAdminDocuments = () => {
   const isAdmin = user?.email?.includes('admin') || false;
 
   return useQuery({
-    queryKey: ['admin-kyc-documents-detailed'],
+    queryKey: ['admin-documents'],
     queryFn: async () => {
-      console.log('📄 Fetching KYC documents with detailed logging...');
+      console.log('📄 Fetching KYC documents...');
       
       try {
-        // Get all KYC documents
-        const { data: documents, error: docsError } = await supabase
+        const { data: documents, error } = await supabase
           .from('kyc_documents')
-          .select('*')
+          .select(`
+            *,
+            profiles:user_id (*)
+          `)
           .order('upload_date', { ascending: false });
 
-        if (docsError) {
-          console.error('❌ Error fetching KYC documents:', docsError);
-          throw docsError;
+        if (error) {
+          console.error('❌ Error fetching documents:', error);
+          throw error;
         }
 
-        console.log('✅ Raw KYC documents:', documents);
-        console.log('📊 Total documents found:', documents?.length || 0);
-
-        // Get all profiles to join with documents
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*');
-
-        if (profilesError) {
-          console.error('❌ Error fetching profiles for documents:', profilesError);
-          throw profilesError;
-        }
-
-        // Join documents with profiles
-        const documentsWithProfiles = (documents || []).map(doc => {
-          const profile = profiles?.find(p => p.user_id === doc.user_id);
-          console.log(`🔗 Document ${doc.id} linked to profile:`, profile?.wallet_address);
-          return {
-            ...doc,
-            profiles: profile || null
-          };
-        });
-
-        console.log('🔗 Documents with profiles:', documentsWithProfiles);
-        
-        // Log specific user documents
-        const targetDocs = documentsWithProfiles.filter(doc => 
-          doc.profiles?.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
-          doc.profiles?.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
-        );
-        
-        console.log('🎯 Target user documents:', targetDocs);
-
-        return documentsWithProfiles;
+        console.log('✅ Documents fetched:', documents);
+        return documents || [];
       } catch (error) {
-        console.error('💥 Fatal error in admin documents fetch:', error);
+        console.error('💥 Error in useAdminDocuments:', error);
         throw error;
       }
     },
     enabled: isAdmin,
-    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchInterval: 5000,
     retry: 3,
   });
 };
