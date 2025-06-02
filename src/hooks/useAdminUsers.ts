@@ -10,20 +10,40 @@ export const useAdminUsers = () => {
   return useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      console.log('🔍 Fetching all users...');
+      console.log('🔍 Fetching all users for admin...');
       
       try {
         const { data: profiles, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select(`
+            *,
+            kyc_documents!inner(
+              id,
+              status,
+              upload_date
+            )
+          `)
           .order('created_at', { ascending: false });
 
         if (error) {
           console.error('❌ Error fetching profiles:', error);
-          throw error;
+          
+          // Fallback: try fetching profiles without join
+          const { data: fallbackProfiles, error: fallbackError } = await supabase
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (fallbackError) {
+            console.error('❌ Fallback error:', fallbackError);
+            throw fallbackError;
+          }
+
+          console.log('✅ Fallback profiles fetched:', fallbackProfiles);
+          return fallbackProfiles || [];
         }
 
-        console.log('✅ Profiles fetched:', profiles);
+        console.log('✅ Profiles with KYC fetched:', profiles);
         return profiles || [];
       } catch (error) {
         console.error('💥 Error in useAdminUsers:', error);
@@ -31,7 +51,7 @@ export const useAdminUsers = () => {
       }
     },
     enabled: isAdmin,
-    refetchInterval: 5000,
-    retry: 3,
+    refetchInterval: 3000,
+    retry: 2,
   });
 };

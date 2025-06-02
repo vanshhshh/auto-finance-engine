@@ -57,18 +57,20 @@ const AdminDashboard = () => {
     console.log('📄 KYC documents:', kycDocuments);
     console.log('🔄 Is loading:', isLoading);
     
-    // Specifically look for the target users
-    const targetUsers = allUsers?.filter(user => 
-      user?.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
-      user?.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
-    ) || [];
-    console.log('🎯 Found target users:', targetUsers);
-    
-    const targetDocs = kycDocuments?.filter(doc => 
-      doc?.profiles?.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
-      doc?.profiles?.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
-    ) || [];
-    console.log('🎯 Found target documents:', targetDocs);
+    if (allUsers && allUsers.length > 0) {
+      console.log('🎯 Users found:', allUsers.length);
+      allUsers.forEach((user, index) => {
+        console.log(`User ${index + 1}:`, {
+          id: user.id,
+          user_id: user.user_id,
+          wallet_address: user.wallet_address,
+          kyc_status: user.kyc_status,
+          wallet_approved: user.wallet_approved
+        });
+      });
+    } else {
+      console.log('⚠️ No users found in allUsers array');
+    }
   }, [allUsers, kycDocuments, isLoading]);
 
   const tabs = [
@@ -92,12 +94,20 @@ const AdminDashboard = () => {
       setLoading(true);
       console.log('✅ Approving user:', userId);
       
+      // All available CBDC tokens
+      const cbdcTokens = [
+        'eINR', 'eUSD', 'eAED', 'eEUR', 'eGBP', 'eJPY', 'eCAD', 'eAUD', 
+        'eSEK', 'eCNY', 'eBRL', 'eRUB', 'eKRW', 'eTRY', 'eSAR', 'eGHS', 
+        'eNGN', 'eJMD', 'eBSD', 'eXCD', 'eDrex', 'eKrona', 'eSandDollar', 
+        'eJamDex', 'eNaira', 'eDCash'
+      ];
+      
       const { error } = await supabase
         .from('profiles')
         .update({ 
           wallet_approved: true,
           kyc_status: 'approved',
-          approved_tokens: ['eINR', 'eUSD', 'eAED', 'eEUR', 'eGBP', 'eJPY', 'eCAD', 'eAUD', 'eSEK', 'eCNY', 'eBRL', 'eRUB', 'eKRW', 'eTRY', 'eSAR', 'eGHS', 'eNGN', 'eJMD', 'eBSD', 'eXCD']
+          approved_tokens: cbdcTokens
         })
         .eq('user_id', userId);
 
@@ -247,7 +257,21 @@ const AdminDashboard = () => {
       <div className="bg-white border-b border-gray-200">
         <div className="px-6">
           <nav className="flex space-x-4 overflow-x-auto py-2">
-            {tabs.map((tab) => {
+            {[
+              { id: 'overview', label: 'Overview', icon: BarChart3 },
+              { id: 'user-management', label: 'User Management', icon: Users },
+              { id: 'kyc-verification', label: 'KYC Verification', icon: FileText },
+              { id: 'cbdc-countries', label: 'CBDC Countries', icon: Globe },
+              { id: 'admin-controls', label: 'Admin Controls', icon: Settings },
+              { id: 'wallet-management', label: 'Wallet Management', icon: Wallet },
+              { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
+              { id: 'blockchain-integration', label: 'Blockchain Integration', icon: Globe },
+              { id: 'mobile-integration', label: 'Mobile Integration', icon: Smartphone },
+              { id: 'payment-gateway', label: 'Payment Gateway', icon: CreditCard },
+              { id: 'ai-fraud-detection', label: 'AI Fraud Detection', icon: Brain },
+              { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+              { id: 'compliance', label: 'Compliance', icon: Scale },
+            ].map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -460,43 +484,52 @@ const AdminDashboard = () => {
                   {allUsers?.length || 0} Users
                 </Badge>
               </CardTitle>
+              <p className="text-sm text-gray-600">Manage user accounts and wallet approvals</p>
             </CardHeader>
             <CardContent>
+              {isLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Loading users...</span>
+                </div>
+              )}
+              
               <div className="space-y-4">
-                {allUsers && allUsers.length > 0 ? allUsers.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                {allUsers && allUsers.length > 0 ? allUsers.map((userProfile) => (
+                  <div key={userProfile.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
-                      <div className="font-medium">{user?.wallet_address || 'No Address'}</div>
-                      <div className="text-sm text-gray-600">User ID: {user.user_id}</div>
-                      <div className="text-sm text-gray-600">Role: {user.role}</div>
+                      <div className="font-medium">{userProfile?.wallet_address || 'No Address'}</div>
+                      <div className="text-sm text-gray-600">User ID: {userProfile.user_id}</div>
+                      <div className="text-sm text-gray-600">Role: {userProfile.role}</div>
                       <div className="text-sm text-gray-600">
                         KYC: <Badge className={`${
-                          user.kyc_status === 'approved' ? 'bg-green-600' :
-                          user.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
+                          userProfile.kyc_status === 'approved' ? 'bg-green-600' :
+                          userProfile.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
                         } text-white`}>
-                          {user.kyc_status?.toUpperCase() || 'PENDING'}
+                          {userProfile.kyc_status?.toUpperCase() || 'PENDING'}
                         </Badge>
                       </div>
                       <div className="text-sm text-gray-600">
                         Wallet: <Badge className={`${
-                          user.wallet_approved ? 'bg-green-600' : 'bg-gray-600'
+                          userProfile.wallet_approved ? 'bg-green-600' : 'bg-gray-600'
                         } text-white`}>
-                          {user.wallet_approved ? 'APPROVED' : 'PENDING'}
+                          {userProfile.wallet_approved ? 'APPROVED' : 'PENDING'}
                         </Badge>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        Created: {new Date(user.created_at).toLocaleDateString()}
+                        Created: {new Date(userProfile.created_at).toLocaleDateString()}
                       </div>
-                      {user.approved_tokens && user.approved_tokens.length > 0 && (
+                      {userProfile.approved_tokens && userProfile.approved_tokens.length > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
-                          Approved Tokens: {user.approved_tokens.join(', ')}
+                          Approved Tokens: {userProfile.approved_tokens.slice(0, 5).join(', ')}
+                          {userProfile.approved_tokens.length > 5 && ` +${userProfile.approved_tokens.length - 5} more`}
                         </div>
                       )}
                     </div>
                     <div className="flex gap-2">
-                      {user.kyc_status !== 'approved' && (
+                      {userProfile.kyc_status !== 'approved' && (
                         <Button 
-                          onClick={() => approveUser(user.user_id)}
+                          onClick={() => approveUser(userProfile.user_id)}
                           size="sm" 
                           className="bg-green-600 hover:bg-green-700"
                           disabled={loading}
@@ -504,9 +537,9 @@ const AdminDashboard = () => {
                           Approve
                         </Button>
                       )}
-                      {user.kyc_status !== 'rejected' && (
+                      {userProfile.kyc_status !== 'rejected' && (
                         <Button 
-                          onClick={() => rejectUser(user.user_id)}
+                          onClick={() => rejectUser(userProfile.user_id)}
                           size="sm" 
                           variant="destructive"
                           disabled={loading}
@@ -520,6 +553,7 @@ const AdminDashboard = () => {
                   <div className="text-center py-8 text-gray-600">
                     <Users size={48} className="mx-auto mb-4 text-gray-400" />
                     <p>No users found</p>
+                    <p className="text-sm">Users will appear here when they register</p>
                     <Button 
                       onClick={() => window.location.reload()} 
                       variant="outline" 
