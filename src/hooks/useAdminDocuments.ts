@@ -13,21 +13,35 @@ export const useAdminDocuments = () => {
       console.log('📄 Fetching KYC documents...');
       
       try {
-        const { data: documents, error } = await supabase
+        // First get all KYC documents
+        const { data: documents, error: docsError } = await supabase
           .from('kyc_documents')
-          .select(`
-            *,
-            profiles:user_id (*)
-          `)
+          .select('*')
           .order('upload_date', { ascending: false });
 
-        if (error) {
-          console.error('❌ Error fetching documents:', error);
-          throw error;
+        if (docsError) {
+          console.error('❌ Error fetching documents:', docsError);
+          throw docsError;
         }
 
-        console.log('✅ Documents fetched:', documents);
-        return documents || [];
+        // Then get all profiles
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*');
+
+        if (profilesError) {
+          console.error('❌ Error fetching profiles:', profilesError);
+          throw profilesError;
+        }
+
+        // Manually join the data
+        const documentsWithProfiles = documents?.map(doc => ({
+          ...doc,
+          profiles: profiles?.find(profile => profile.user_id === doc.user_id) || null
+        })) || [];
+
+        console.log('✅ Documents with profiles:', documentsWithProfiles);
+        return documentsWithProfiles;
       } catch (error) {
         console.error('💥 Error in useAdminDocuments:', error);
         throw error;

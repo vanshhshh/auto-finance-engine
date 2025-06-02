@@ -58,16 +58,16 @@ const AdminDashboard = () => {
     console.log('🔄 Is loading:', isLoading);
     
     // Specifically look for the target users
-    const targetUsers = allUsers.filter(user => 
-      user.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
-      user.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
-    );
+    const targetUsers = allUsers?.filter(user => 
+      user?.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
+      user?.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
+    ) || [];
     console.log('🎯 Found target users:', targetUsers);
     
-    const targetDocs = kycDocuments.filter(doc => 
-      doc.profiles?.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
-      doc.profiles?.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
-    );
+    const targetDocs = kycDocuments?.filter(doc => 
+      doc?.profiles?.wallet_address?.includes('0x48193892d57240be965462d7dc0cf11a') ||
+      doc?.profiles?.wallet_address?.includes('0x66569048d2eb4b2b9070db5cef80ffdc')
+    ) || [];
     console.log('🎯 Found target documents:', targetDocs);
   }, [allUsers, kycDocuments, isLoading]);
 
@@ -290,7 +290,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {kycDocuments?.filter(doc => doc.status === 'pending' || doc.status === 'under_review').length || 0}
+                  {kycDocuments?.filter(doc => doc?.status === 'pending' || doc?.status === 'under_review').length || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">Awaiting review</p>
               </CardContent>
@@ -303,7 +303,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {allUsers?.filter(u => u.wallet_approved).length || 0}
+                  {allUsers?.filter(u => u?.wallet_approved).length || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">Active wallets</p>
               </CardContent>
@@ -349,7 +349,7 @@ const AdminDashboard = () => {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <div className="font-medium text-lg">
-                          User: {doc.profiles?.wallet_address || 'No Address'}
+                          User: {doc?.profiles?.wallet_address || 'No Address'}
                         </div>
                         <div className="text-sm text-gray-600">
                           Document: {doc.document_type.replace('_', ' ').toUpperCase()}
@@ -373,16 +373,16 @@ const AdminDashboard = () => {
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
-                        <span className="text-gray-600">Country:</span> {doc.profiles?.country_of_residence || 'Not specified'}
+                        <span className="text-gray-600">Country:</span> {doc?.profiles?.country_of_residence || 'Not specified'}
                       </div>
                       <div>
-                        <span className="text-gray-600">Nationality:</span> {doc.profiles?.nationality || 'Not specified'}
+                        <span className="text-gray-600">Nationality:</span> {doc?.profiles?.nationality || 'Not specified'}
                       </div>
                       <div>
                         <span className="text-gray-600">File:</span> {doc.file_name}
                       </div>
                       <div>
-                        <span className="text-gray-600">KYC Status:</span> {doc.profiles?.kyc_status || 'pending'}
+                        <span className="text-gray-600">KYC Status:</span> {doc?.profiles?.kyc_status || 'pending'}
                       </div>
                     </div>
 
@@ -466,7 +466,7 @@ const AdminDashboard = () => {
                 {allUsers && allUsers.length > 0 ? allUsers.map((user) => (
                   <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
-                      <div className="font-medium">{user.wallet_address || 'No Address'}</div>
+                      <div className="font-medium">{user?.wallet_address || 'No Address'}</div>
                       <div className="text-sm text-gray-600">User ID: {user.user_id}</div>
                       <div className="text-sm text-gray-600">Role: {user.role}</div>
                       <div className="text-sm text-gray-600">
