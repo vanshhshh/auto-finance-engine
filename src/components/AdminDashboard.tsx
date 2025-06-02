@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -412,7 +413,8 @@ const AdminDashboard = () => {
                       <div className="text-xs text-gray-500 mt-1">
                         Created: {new Date(userProfile.created_at).toLocaleDateString()}
                       </div>
-                      {userProfile.approved_tokens && userProfile.approved_tokens.length > 0 && (
+                      {/* Safe check for approved_tokens */}
+                      {userProfile.approved_tokens && Array.isArray(userProfile.approved_tokens) && userProfile.approved_tokens.length > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
                           Approved Tokens: {userProfile.approved_tokens.slice(0, 5).join(', ')}
                           {userProfile.approved_tokens.length > 5 && ` +${userProfile.approved_tokens.length - 5} more`}
@@ -654,7 +656,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                     <div className="mt-2 text-xs text-gray-500">
-                      Last Activity: {new Date(user.updated_at).toLocaleDateString()}
+                      Last Activity: {user.updated_at ? new Date(user.updated_at).toLocaleDateString() : 'N/A'}
                     </div>
                   </div>
                 ))}
