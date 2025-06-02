@@ -35,6 +35,21 @@ import { supabase } from '@/integrations/supabase/client';
 import CBDCCountries from './CBDCCountries';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Define the user profile type
+interface UserProfile {
+  id: string;
+  user_id: string;
+  role: string;
+  wallet_address: string | null;
+  kyc_status: string | null;
+  wallet_approved: boolean | null;
+  approved_tokens: string[] | null;
+  nationality: string | null;
+  country_of_residence: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { systemControls, allUsers, auditLogs, kycDocuments, isLoading } = useAdminData();
@@ -69,7 +84,8 @@ const AdminDashboard = () => {
           kyc_status: userProfile.kyc_status,
           wallet_approved: userProfile.wallet_approved,
           role: userProfile.role,
-          created_at: userProfile.created_at
+          created_at: userProfile.created_at,
+          approved_tokens: userProfile.approved_tokens
         });
       });
     } else {
@@ -77,7 +93,6 @@ const AdminDashboard = () => {
       console.log('🔍 Checking if data is loading:', isLoading);
     }
 
-    // Also log KYC document data
     if (kycDocuments && kycDocuments.length > 0) {
       console.log('📄 KYC Documents found:', kycDocuments.length);
       kycDocuments.forEach((doc, index) => {
@@ -86,7 +101,7 @@ const AdminDashboard = () => {
           user_id: doc.user_id,
           document_type: doc.document_type,
           status: doc.status,
-          profile: doc.profile
+          profiles: doc.profiles
         });
       });
     }
@@ -98,7 +113,7 @@ const AdminDashboard = () => {
     window.location.reload();
   };
 
-  // Calculate statistics
+  // Calculate statistics with safe access
   const totalUsers = allUsers?.length || 0;
   const pendingKYC = allUsers?.filter(user => 
     user?.kyc_status === 'pending' || user?.kyc_status === 'under_review'
@@ -388,7 +403,7 @@ const AdminDashboard = () => {
               )}
               
               <div className="space-y-4">
-                {allUsers && allUsers.length > 0 ? allUsers.map((userProfile) => (
+                {allUsers && allUsers.length > 0 ? allUsers.map((userProfile: UserProfile) => (
                   <div key={userProfile.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium">{userProfile?.wallet_address || 'No Address'}</div>
@@ -413,7 +428,6 @@ const AdminDashboard = () => {
                       <div className="text-xs text-gray-500 mt-1">
                         Created: {new Date(userProfile.created_at).toLocaleDateString()}
                       </div>
-                      {/* Safe check for approved_tokens */}
                       {userProfile.approved_tokens && Array.isArray(userProfile.approved_tokens) && userProfile.approved_tokens.length > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
                           Approved Tokens: {userProfile.approved_tokens.slice(0, 5).join(', ')}
@@ -488,7 +502,7 @@ const AdminDashboard = () => {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <div className="font-medium text-lg">
-                          User: {doc?.profile?.wallet_address || 'No Address'}
+                          User: {doc?.profiles?.wallet_address || 'No Address'}
                         </div>
                         <div className="text-sm text-gray-600">
                           Document: {doc.document_type.replace('_', ' ').toUpperCase()}
@@ -512,16 +526,16 @@ const AdminDashboard = () => {
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
-                        <span className="text-gray-600">Country:</span> {doc?.profile?.country_of_residence || 'Not specified'}
+                        <span className="text-gray-600">Country:</span> {doc?.profiles?.country_of_residence || 'Not specified'}
                       </div>
                       <div>
-                        <span className="text-gray-600">Nationality:</span> {doc?.profile?.nationality || 'Not specified'}
+                        <span className="text-gray-600">Nationality:</span> {doc?.profiles?.nationality || 'Not specified'}
                       </div>
                       <div>
                         <span className="text-gray-600">File:</span> {doc.file_name}
                       </div>
                       <div>
-                        <span className="text-gray-600">KYC Status:</span> {doc?.profile?.kyc_status || 'pending'}
+                        <span className="text-gray-600">KYC Status:</span> {doc?.profiles?.kyc_status || 'pending'}
                       </div>
                     </div>
 
@@ -674,15 +688,15 @@ const AdminDashboard = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">247</div>
+                  <div className="text-2xl font-bold text-blue-600">0</div>
                   <div className="text-sm text-gray-600">QR Codes Generated Today</div>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">189</div>
+                  <div className="text-2xl font-bold text-green-600">0</div>
                   <div className="text-sm text-gray-600">Successful Payments</div>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">₹45,670</div>
+                  <div className="text-2xl font-bold text-purple-600">₹0.00</div>
                   <div className="text-sm text-gray-600">Total Volume Today</div>
                 </div>
               </div>

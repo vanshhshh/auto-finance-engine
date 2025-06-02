@@ -13,10 +13,20 @@ export const useAdminDocuments = () => {
       console.log('📄 Fetching KYC documents...');
       
       try {
-        // First get all KYC documents
+        // Get all KYC documents with proper joins
         const { data: documents, error: docsError } = await supabase
           .from('kyc_documents')
-          .select('*')
+          .select(`
+            *,
+            profiles!kyc_documents_user_id_fkey (
+              id,
+              user_id,
+              wallet_address,
+              kyc_status,
+              nationality,
+              country_of_residence
+            )
+          `)
           .order('upload_date', { ascending: false });
 
         if (docsError) {
@@ -24,24 +34,8 @@ export const useAdminDocuments = () => {
           throw docsError;
         }
 
-        // Then get all profiles
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*');
-
-        if (profilesError) {
-          console.error('❌ Error fetching profiles:', profilesError);
-          throw profilesError;
-        }
-
-        // Manually join the data
-        const documentsWithProfiles = documents?.map(doc => ({
-          ...doc,
-          profile: profiles?.find(profile => profile.user_id === doc.user_id) || null
-        })) || [];
-
-        console.log('✅ Documents with profiles:', documentsWithProfiles);
-        return documentsWithProfiles;
+        console.log('✅ Documents with profiles:', documents);
+        return documents || [];
       } catch (error) {
         console.error('💥 Error in useAdminDocuments:', error);
         throw error;
