@@ -73,22 +73,6 @@ const AdminDashboard = () => {
     }
   }, [allUsers, kycDocuments, isLoading]);
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'user-management', label: 'User Management', icon: Users },
-    { id: 'kyc-verification', label: 'KYC Verification', icon: FileText },
-    { id: 'cbdc-countries', label: 'CBDC Countries', icon: Globe },
-    { id: 'admin-controls', label: 'Admin Controls', icon: Settings },
-    { id: 'wallet-management', label: 'Wallet Management', icon: Wallet },
-    { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
-    { id: 'blockchain-integration', label: 'Blockchain Integration', icon: Globe },
-    { id: 'mobile-integration', label: 'Mobile Integration', icon: Smartphone },
-    { id: 'payment-gateway', label: 'Payment Gateway', icon: CreditCard },
-    { id: 'ai-fraud-detection', label: 'AI Fraud Detection', icon: Brain },
-    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'compliance', label: 'Compliance', icon: Scale },
-  ];
-
   const approveUser = async (userId: string) => {
     try {
       setLoading(true);
@@ -303,7 +287,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{allUsers?.length || 0}</div>
-                <p className="text-xs text-muted-foreground">Active users</p>
+                <p className="text-xs text-muted-foreground">Registered users</p>
               </CardContent>
             </Card>
 
@@ -314,7 +298,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {kycDocuments?.filter(doc => doc?.status === 'pending' || doc?.status === 'under_review').length || 0}
+                  {allUsers?.filter(user => user?.kyc_status === 'pending' || user?.kyc_status === 'under_review').length || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">Awaiting review</p>
               </CardContent>
@@ -373,7 +357,7 @@ const AdminDashboard = () => {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <div className="font-medium text-lg">
-                          User: {doc?.profiles?.wallet_address || 'No Address'}
+                          User: {doc?.profile?.wallet_address || 'No Address'}
                         </div>
                         <div className="text-sm text-gray-600">
                           Document: {doc.document_type.replace('_', ' ').toUpperCase()}
@@ -397,16 +381,16 @@ const AdminDashboard = () => {
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
-                        <span className="text-gray-600">Country:</span> {doc?.profiles?.country_of_residence || 'Not specified'}
+                        <span className="text-gray-600">Country:</span> {doc?.profile?.country_of_residence || 'Not specified'}
                       </div>
                       <div>
-                        <span className="text-gray-600">Nationality:</span> {doc?.profiles?.nationality || 'Not specified'}
+                        <span className="text-gray-600">Nationality:</span> {doc?.profile?.nationality || 'Not specified'}
                       </div>
                       <div>
                         <span className="text-gray-600">File:</span> {doc.file_name}
                       </div>
                       <div>
-                        <span className="text-gray-600">KYC Status:</span> {doc?.profiles?.kyc_status || 'pending'}
+                        <span className="text-gray-600">KYC Status:</span> {doc?.profile?.kyc_status || 'pending'}
                       </div>
                     </div>
 
@@ -504,7 +488,8 @@ const AdminDashboard = () => {
                       <div className="text-sm text-gray-600">
                         KYC: <Badge className={`${
                           userProfile.kyc_status === 'approved' ? 'bg-green-600' :
-                          userProfile.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-orange-600'
+                          userProfile.kyc_status === 'rejected' ? 'bg-red-600' :
+                          userProfile.kyc_status === 'under_review' ? 'bg-orange-600' : 'bg-orange-600'
                         } text-white`}>
                           {userProfile.kyc_status?.toUpperCase() || 'PENDING'}
                         </Badge>

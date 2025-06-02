@@ -13,37 +13,18 @@ export const useAdminUsers = () => {
       console.log('🔍 Fetching all users for admin...');
       
       try {
+        // Get all profiles directly
         const { data: profiles, error } = await supabase
           .from('profiles')
-          .select(`
-            *,
-            kyc_documents!inner(
-              id,
-              status,
-              upload_date
-            )
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
 
         if (error) {
           console.error('❌ Error fetching profiles:', error);
-          
-          // Fallback: try fetching profiles without join
-          const { data: fallbackProfiles, error: fallbackError } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          if (fallbackError) {
-            console.error('❌ Fallback error:', fallbackError);
-            throw fallbackError;
-          }
-
-          console.log('✅ Fallback profiles fetched:', fallbackProfiles);
-          return fallbackProfiles || [];
+          throw error;
         }
 
-        console.log('✅ Profiles with KYC fetched:', profiles);
+        console.log('✅ All profiles fetched:', profiles);
         return profiles || [];
       } catch (error) {
         console.error('💥 Error in useAdminUsers:', error);

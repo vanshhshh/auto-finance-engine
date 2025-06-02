@@ -37,7 +37,7 @@ export const useAdminDocuments = () => {
         // Manually join the data
         const documentsWithProfiles = documents?.map(doc => ({
           ...doc,
-          profiles: profiles?.find(profile => profile.user_id === doc.user_id) || null
+          profile: profiles?.find(profile => profile.user_id === doc.user_id) || null
         })) || [];
 
         console.log('✅ Documents with profiles:', documentsWithProfiles);
