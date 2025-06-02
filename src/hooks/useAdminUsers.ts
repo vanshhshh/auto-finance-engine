@@ -24,10 +24,10 @@ export const useAdminUsers = () => {
           console.error('❌ Error getting count:', countError);
         }
 
-        // Get all profiles with detailed logging
+        // Get all profiles with all fields including approved_tokens and updated_at
         const { data: profiles, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, user_id, role, wallet_address, kyc_status, wallet_approved, approved_tokens, nationality, country_of_residence, created_at, updated_at')
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -54,7 +54,9 @@ export const useAdminUsers = () => {
             wallet_address: profile.wallet_address,
             kyc_status: profile.kyc_status,
             wallet_approved: profile.wallet_approved,
-            created_at: profile.created_at
+            approved_tokens: profile.approved_tokens,
+            created_at: profile.created_at,
+            updated_at: profile.updated_at
           });
         });
 
