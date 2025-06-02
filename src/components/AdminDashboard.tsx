@@ -54,24 +54,57 @@ const AdminDashboard = () => {
   useEffect(() => {
     console.log('🔄 AdminDashboard data updated:');
     console.log('👥 All users:', allUsers);
+    console.log('👥 Users count:', allUsers?.length || 0);
     console.log('📄 KYC documents:', kycDocuments);
     console.log('🔄 Is loading:', isLoading);
     
     if (allUsers && allUsers.length > 0) {
       console.log('🎯 Users found:', allUsers.length);
-      allUsers.forEach((user, index) => {
+      allUsers.forEach((userProfile, index) => {
         console.log(`User ${index + 1}:`, {
-          id: user.id,
-          user_id: user.user_id,
-          wallet_address: user.wallet_address,
-          kyc_status: user.kyc_status,
-          wallet_approved: user.wallet_approved
+          id: userProfile.id,
+          user_id: userProfile.user_id,
+          wallet_address: userProfile.wallet_address,
+          kyc_status: userProfile.kyc_status,
+          wallet_approved: userProfile.wallet_approved,
+          role: userProfile.role,
+          created_at: userProfile.created_at
         });
       });
     } else {
       console.log('⚠️ No users found in allUsers array');
+      console.log('🔍 Checking if data is loading:', isLoading);
+    }
+
+    // Also log KYC document data
+    if (kycDocuments && kycDocuments.length > 0) {
+      console.log('📄 KYC Documents found:', kycDocuments.length);
+      kycDocuments.forEach((doc, index) => {
+        console.log(`KYC Doc ${index + 1}:`, {
+          id: doc.id,
+          user_id: doc.user_id,
+          document_type: doc.document_type,
+          status: doc.status,
+          profile: doc.profile
+        });
+      });
     }
   }, [allUsers, kycDocuments, isLoading]);
+
+  // Function to manually refresh data
+  const refreshData = () => {
+    console.log('🔄 Manual refresh triggered');
+    window.location.reload();
+  };
+
+  // Calculate statistics
+  const totalUsers = allUsers?.length || 0;
+  const pendingKYC = allUsers?.filter(user => 
+    user?.kyc_status === 'pending' || user?.kyc_status === 'under_review'
+  ).length || 0;
+  const approvedWallets = allUsers?.filter(user => user?.wallet_approved === true).length || 0;
+
+  console.log('📊 Dashboard Stats:', { totalUsers, pendingKYC, approvedWallets });
 
   const approveUser = async (userId: string) => {
     try {
@@ -214,10 +247,13 @@ const AdminDashboard = () => {
                 <span className="text-sm">Loading fresh data...</span>
               </div>
             )}
+            <div className="mt-2 text-sm text-gray-500">
+              Debug: Total Users Found: {totalUsers} | Loading: {isLoading ? 'Yes' : 'No'}
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <Button 
-              onClick={() => window.location.reload()}
+              onClick={refreshData}
               variant="outline"
               className="flex items-center gap-2"
               disabled={loading}
@@ -286,7 +322,7 @@ const AdminDashboard = () => {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{allUsers?.length || 0}</div>
+                <div className="text-2xl font-bold">{totalUsers}</div>
                 <p className="text-xs text-muted-foreground">Registered users</p>
               </CardContent>
             </Card>
@@ -297,9 +333,7 @@ const AdminDashboard = () => {
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {allUsers?.filter(user => user?.kyc_status === 'pending' || user?.kyc_status === 'under_review').length || 0}
-                </div>
+                <div className="text-2xl font-bold">{pendingKYC}</div>
                 <p className="text-xs text-muted-foreground">Awaiting review</p>
               </CardContent>
             </Card>
@@ -310,9 +344,7 @@ const AdminDashboard = () => {
                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {allUsers?.filter(u => u?.wallet_approved).length || 0}
-                </div>
+                <div className="text-2xl font-bold">{approvedWallets}</div>
                 <p className="text-xs text-muted-foreground">Active wallets</p>
               </CardContent>
             </Card>
@@ -331,6 +363,103 @@ const AdminDashboard = () => {
         )}
 
         {activeTab === 'cbdc-countries' && <CBDCCountries />}
+
+        {activeTab === 'user-management' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                User Management
+                <Badge variant="outline" className="text-sm">
+                  {totalUsers} Users
+                </Badge>
+              </CardTitle>
+              <p className="text-sm text-gray-600">Manage user accounts and wallet approvals</p>
+              <div className="text-xs text-gray-500">
+                Debug Info: Loading: {isLoading ? 'Yes' : 'No'} | Users Array Length: {allUsers?.length || 0}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Loading users...</span>
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                {allUsers && allUsers.length > 0 ? allUsers.map((userProfile) => (
+                  <div key={userProfile.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium">{userProfile?.wallet_address || 'No Address'}</div>
+                      <div className="text-sm text-gray-600">User ID: {userProfile.user_id}</div>
+                      <div className="text-sm text-gray-600">Role: {userProfile.role}</div>
+                      <div className="text-sm text-gray-600">
+                        KYC: <Badge className={`${
+                          userProfile.kyc_status === 'approved' ? 'bg-green-600' :
+                          userProfile.kyc_status === 'rejected' ? 'bg-red-600' :
+                          userProfile.kyc_status === 'under_review' ? 'bg-orange-600' : 'bg-gray-600'
+                        } text-white`}>
+                          {userProfile.kyc_status?.toUpperCase() || 'PENDING'}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Wallet: <Badge className={`${
+                          userProfile.wallet_approved ? 'bg-green-600' : 'bg-gray-600'
+                        } text-white`}>
+                          {userProfile.wallet_approved ? 'APPROVED' : 'PENDING'}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Created: {new Date(userProfile.created_at).toLocaleDateString()}
+                      </div>
+                      {userProfile.approved_tokens && userProfile.approved_tokens.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Approved Tokens: {userProfile.approved_tokens.slice(0, 5).join(', ')}
+                          {userProfile.approved_tokens.length > 5 && ` +${userProfile.approved_tokens.length - 5} more`}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      {userProfile.kyc_status !== 'approved' && (
+                        <Button 
+                          onClick={() => approveUser(userProfile.user_id)}
+                          size="sm" 
+                          className="bg-green-600 hover:bg-green-700"
+                          disabled={loading}
+                        >
+                          Approve
+                        </Button>
+                      )}
+                      {userProfile.kyc_status !== 'rejected' && (
+                        <Button 
+                          onClick={() => rejectUser(userProfile.user_id)}
+                          size="sm" 
+                          variant="destructive"
+                          disabled={loading}
+                        >
+                          Reject
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )) : (
+                  <div className="text-center py-8 text-gray-600">
+                    <Users size={48} className="mx-auto mb-4 text-gray-400" />
+                    <p>No users found</p>
+                    <p className="text-sm">Users will appear here when they register</p>
+                    <Button 
+                      onClick={refreshData} 
+                      variant="outline" 
+                      className="mt-4"
+                    >
+                      Refresh to check for users
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {activeTab === 'kyc-verification' && (
           <Card>
@@ -446,105 +575,11 @@ const AdminDashboard = () => {
                     <p>No KYC documents found</p>
                     <p className="text-sm">Documents will appear here when users submit them</p>
                     <Button 
-                      onClick={() => window.location.reload()} 
+                      onClick={refreshData} 
                       variant="outline" 
                       className="mt-4"
                     >
                       Refresh to check for new documents
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'user-management' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                User Management
-                <Badge variant="outline" className="text-sm">
-                  {allUsers?.length || 0} Users
-                </Badge>
-              </CardTitle>
-              <p className="text-sm text-gray-600">Manage user accounts and wallet approvals</p>
-            </CardHeader>
-            <CardContent>
-              {isLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
-                  <span className="ml-2 text-gray-600">Loading users...</span>
-                </div>
-              )}
-              
-              <div className="space-y-4">
-                {allUsers && allUsers.length > 0 ? allUsers.map((userProfile) => (
-                  <div key={userProfile.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium">{userProfile?.wallet_address || 'No Address'}</div>
-                      <div className="text-sm text-gray-600">User ID: {userProfile.user_id}</div>
-                      <div className="text-sm text-gray-600">Role: {userProfile.role}</div>
-                      <div className="text-sm text-gray-600">
-                        KYC: <Badge className={`${
-                          userProfile.kyc_status === 'approved' ? 'bg-green-600' :
-                          userProfile.kyc_status === 'rejected' ? 'bg-red-600' :
-                          userProfile.kyc_status === 'under_review' ? 'bg-orange-600' : 'bg-orange-600'
-                        } text-white`}>
-                          {userProfile.kyc_status?.toUpperCase() || 'PENDING'}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Wallet: <Badge className={`${
-                          userProfile.wallet_approved ? 'bg-green-600' : 'bg-gray-600'
-                        } text-white`}>
-                          {userProfile.wallet_approved ? 'APPROVED' : 'PENDING'}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Created: {new Date(userProfile.created_at).toLocaleDateString()}
-                      </div>
-                      {userProfile.approved_tokens && userProfile.approved_tokens.length > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Approved Tokens: {userProfile.approved_tokens.slice(0, 5).join(', ')}
-                          {userProfile.approved_tokens.length > 5 && ` +${userProfile.approved_tokens.length - 5} more`}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      {userProfile.kyc_status !== 'approved' && (
-                        <Button 
-                          onClick={() => approveUser(userProfile.user_id)}
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700"
-                          disabled={loading}
-                        >
-                          Approve
-                        </Button>
-                      )}
-                      {userProfile.kyc_status !== 'rejected' && (
-                        <Button 
-                          onClick={() => rejectUser(userProfile.user_id)}
-                          size="sm" 
-                          variant="destructive"
-                          disabled={loading}
-                        >
-                          Reject
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )) : (
-                  <div className="text-center py-8 text-gray-600">
-                    <Users size={48} className="mx-auto mb-4 text-gray-400" />
-                    <p>No users found</p>
-                    <p className="text-sm">Users will appear here when they register</p>
-                    <Button 
-                      onClick={() => window.location.reload()} 
-                      variant="outline" 
-                      className="mt-4"
-                    >
-                      Refresh to check for users
                     </Button>
                   </div>
                 )}
@@ -598,7 +633,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {allUsers.filter(u => u.wallet_approved).map((user) => (
+                {allUsers?.filter(u => u.wallet_approved).map((user) => (
                   <div key={user.id} className="p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <div className="font-medium">{user.wallet_address}</div>
@@ -661,7 +696,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {auditLogs.slice(0, 10).map((log) => (
+                {auditLogs?.slice(0, 10).map((log) => (
                   <div key={log.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-full bg-blue-100">

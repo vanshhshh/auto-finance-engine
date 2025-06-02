@@ -10,10 +10,21 @@ export const useAdminUsers = () => {
   return useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      console.log('🔍 Fetching all users for admin...');
+      console.log('🔍 Admin fetching all users...');
+      console.log('🔐 Current admin user:', user?.email);
       
       try {
-        // Get all profiles directly
+        // First, let's check if we can access the profiles table at all
+        const { count, error: countError } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        console.log('📊 Total profiles count:', count);
+        if (countError) {
+          console.error('❌ Error getting count:', countError);
+        }
+
+        // Get all profiles with detailed logging
         const { data: profiles, error } = await supabase
           .from('profiles')
           .select('*')
@@ -21,18 +32,62 @@ export const useAdminUsers = () => {
 
         if (error) {
           console.error('❌ Error fetching profiles:', error);
+          console.error('❌ Error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+          });
           throw error;
         }
 
-        console.log('✅ All profiles fetched:', profiles);
+        console.log('✅ Profiles fetched successfully:');
+        console.log('📋 Total profiles returned:', profiles?.length || 0);
+        console.log('👥 Profile details:', profiles);
+
+        // Log each profile for debugging
+        profiles?.forEach((profile, index) => {
+          console.log(`👤 Profile ${index + 1}:`, {
+            id: profile.id,
+            user_id: profile.user_id,
+            role: profile.role,
+            wallet_address: profile.wallet_address,
+            kyc_status: profile.kyc_status,
+            wallet_approved: profile.wallet_approved,
+            created_at: profile.created_at
+          });
+        });
+
         return profiles || [];
       } catch (error) {
         console.error('💥 Error in useAdminUsers:', error);
-        throw error;
+        
+        // Try a fallback query with minimal selection
+        console.log('🔄 Trying fallback query...');
+        try {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('profiles')
+            .select('id, user_id, role, wallet_address, kyc_status, wallet_approved, created_at')
+            .limit(100);
+
+          if (fallbackError) {
+            console.error('❌ Fallback query failed:', fallbackError);
+            throw fallbackError;
+          }
+
+          console.log('✅ Fallback query successful:', fallbackData);
+          return fallbackData || [];
+        } catch (fallbackError) {
+          console.error('💥 Both queries failed:', fallbackError);
+          throw fallbackError;
+        }
       }
     },
     enabled: isAdmin,
-    refetchInterval: 3000,
-    retry: 2,
+    refetchInterval: 5000, // Reduced interval
+    retry: 3,
+    retryDelay: 1000,
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache results
   });
 };
