@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,11 +72,57 @@ const AdminDashboard = () => {
   const { data: qrPaymentStats } = useQRPayments();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+
+  // Check if current user is admin
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error checking admin status:', error);
+          return;
+        }
+        
+        setIsCurrentUserAdmin(profile?.role === 'admin');
+      } catch (error) {
+        console.error('Error in admin check:', error);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
+
+  // If not admin, show access denied
+  if (!isCurrentUserAdmin && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="w-96">
+          <CardContent className="text-center py-12">
+            <Shield size={48} className="mx-auto mb-4 text-red-500" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-4">You need admin privileges to access this dashboard.</p>
+            <Button onClick={() => signOut()} variant="outline">
+              Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await signOut();
       window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
@@ -91,6 +136,7 @@ const AdminDashboard = () => {
     console.log('👥 Users count:', allUsers?.length || 0);
     console.log('📄 KYC documents:', kycDocuments);
     console.log('🔄 Is loading:', isLoading);
+    console.log('🔐 Is current user admin:', isCurrentUserAdmin);
     
     if (allUsers && allUsers.length > 0) {
       console.log('🎯 Users found:', allUsers.length);
@@ -123,7 +169,7 @@ const AdminDashboard = () => {
         });
       });
     }
-  }, [allUsers, kycDocuments, isLoading]);
+  }, [allUsers, kycDocuments, isLoading, isCurrentUserAdmin]);
 
   // Function to manually refresh data
   const refreshData = () => {
@@ -267,6 +313,18 @@ const AdminDashboard = () => {
     }
   };
 
+  // Show loading state while checking admin status
+  if (isLoading || (!isCurrentUserAdmin && user)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+          <span className="text-gray-600">Loading admin dashboard...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -282,7 +340,7 @@ const AdminDashboard = () => {
               </div>
             )}
             <div className="mt-2 text-sm text-gray-500">
-              Debug: Total Users Found: {totalUsers} | Loading: {isLoading ? 'Yes' : 'No'}
+              Admin Status: {isCurrentUserAdmin ? 'Confirmed' : 'Checking...'} | Total Users: {totalUsers} | Loading: {isLoading ? 'Yes' : 'No'}
             </div>
           </div>
           <div className="flex items-center gap-4">

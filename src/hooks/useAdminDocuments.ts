@@ -5,7 +5,30 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export const useAdminDocuments = () => {
   const { user } = useAuth();
-  const isAdmin = user?.email?.includes('admin') || false;
+  
+  // Check if user is admin by checking their profile role
+  const { data: currentUserProfile } = useQuery({
+    queryKey: ['current-user-profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching current user profile:', error);
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const isAdmin = currentUserProfile?.role === 'admin';
 
   return useQuery({
     queryKey: ['admin-documents'],
