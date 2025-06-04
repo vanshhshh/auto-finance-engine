@@ -13,19 +13,20 @@ export const useAdminDocuments = () => {
       console.log('📄 Fetching KYC documents...');
       
       try {
-        // Get all KYC documents with proper joins
+        // Get all KYC documents and join with profiles
         const { data: documents, error: docsError } = await supabase
           .from('kyc_documents')
           .select(`
-            *,
-            profiles!kyc_documents_user_id_fkey (
-              id,
-              user_id,
-              wallet_address,
-              kyc_status,
-              nationality,
-              country_of_residence
-            )
+            id,
+            user_id,
+            document_type,
+            status,
+            file_name,
+            file_path,
+            upload_date,
+            reviewed_at,
+            reviewed_by,
+            admin_notes
           `)
           .order('upload_date', { ascending: false });
 
@@ -34,8 +35,33 @@ export const useAdminDocuments = () => {
           throw docsError;
         }
 
-        console.log('✅ Documents with profiles:', documents);
-        return documents || [];
+        // Get profiles separately to avoid join issues
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select(`
+            user_id,
+            wallet_address,
+            kyc_status,
+            nationality,
+            country_of_residence
+          `);
+
+        if (profilesError) {
+          console.error('❌ Error fetching profiles:', profilesError);
+          throw profilesError;
+        }
+
+        // Manually join the data
+        const documentsWithProfiles = documents?.map(doc => {
+          const profile = profiles?.find(p => p.user_id === doc.user_id);
+          return {
+            ...doc,
+            profiles: profile || null
+          };
+        }) || [];
+
+        console.log('✅ Documents with profiles:', documentsWithProfiles);
+        return documentsWithProfiles;
       } catch (error) {
         console.error('💥 Error in useAdminDocuments:', error);
         throw error;

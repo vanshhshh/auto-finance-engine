@@ -45,10 +45,10 @@ export const useAdminUsers = () => {
         const typedProfiles = profiles?.map(profile => ({
           id: profile.id,
           user_id: profile.user_id,
-          role: profile.role,
+          role: profile.role || 'user',
           wallet_address: profile.wallet_address,
-          kyc_status: profile.kyc_status,
-          wallet_approved: profile.wallet_approved,
+          kyc_status: profile.kyc_status || 'pending',
+          wallet_approved: profile.wallet_approved || false,
           approved_tokens: profile.approved_tokens || [],
           nationality: profile.nationality,
           country_of_residence: profile.country_of_residence,

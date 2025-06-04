@@ -3,9 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Users, 
@@ -31,11 +28,11 @@ import {
   LogOut
 } from 'lucide-react';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useQRPayments } from '@/hooks/useQRPayments';
 import { supabase } from '@/integrations/supabase/client';
 import CBDCCountries from './CBDCCountries';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Define the user profile type
 interface UserProfile {
   id: string;
   user_id: string;
@@ -50,9 +47,30 @@ interface UserProfile {
   updated_at: string | null;
 }
 
+interface KYCDocument {
+  id: string;
+  user_id: string;
+  document_type: string;
+  status: string;
+  file_name: string;
+  file_path: string;
+  upload_date: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  admin_notes?: string;
+  profiles?: {
+    user_id: string;
+    wallet_address: string;
+    kyc_status: string;
+    nationality: string;
+    country_of_residence: string;
+  } | null;
+}
+
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { systemControls, allUsers, auditLogs, kycDocuments, isLoading } = useAdminData();
+  const { data: qrPaymentStats } = useQRPayments();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -301,11 +319,6 @@ const AdminDashboard = () => {
               { id: 'admin-controls', label: 'Admin Controls', icon: Settings },
               { id: 'wallet-management', label: 'Wallet Management', icon: Wallet },
               { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
-              { id: 'blockchain-integration', label: 'Blockchain Integration', icon: Globe },
-              { id: 'mobile-integration', label: 'Mobile Integration', icon: Smartphone },
-              { id: 'payment-gateway', label: 'Payment Gateway', icon: CreditCard },
-              { id: 'ai-fraud-detection', label: 'AI Fraud Detection', icon: Brain },
-              { id: 'analytics', label: 'Analytics', icon: TrendingUp },
               { id: 'compliance', label: 'Compliance', icon: Scale },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -497,7 +510,7 @@ const AdminDashboard = () => {
               )}
               
               <div className="space-y-6">
-                {kycDocuments && kycDocuments.length > 0 ? kycDocuments.map((doc) => (
+                {kycDocuments && kycDocuments.length > 0 ? kycDocuments.map((doc: KYCDocument) => (
                   <div key={doc.id} className="p-6 border rounded-lg bg-white shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -688,15 +701,21 @@ const AdminDashboard = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">0</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {qrPaymentStats?.qrCodesGenerated || 0}
+                  </div>
                   <div className="text-sm text-gray-600">QR Codes Generated Today</div>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">0</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {qrPaymentStats?.successfulPayments || 0}
+                  </div>
                   <div className="text-sm text-gray-600">Successful Payments</div>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">₹0.00</div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    ₹{qrPaymentStats?.totalVolume?.toFixed(2) || '0.00'}
+                  </div>
                   <div className="text-sm text-gray-600">Total Volume Today</div>
                 </div>
               </div>
