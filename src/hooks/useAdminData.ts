@@ -7,7 +7,19 @@ import { useAdminDocuments } from './useAdminDocuments';
 
 export const useAdminData = () => {
   const { user } = useAuth();
-  const isAdmin = user?.email?.includes('admin') || false;
+  
+  // Check if user is admin by checking known admin users or database
+  const checkIsAdmin = () => {
+    if (!user) return false;
+    
+    // Known admin emails and IDs
+    const knownAdminEmails = ['admin@example.com', 'admin@cbdc.com'];
+    const knownAdminIds = ['de121dc9-d461-4716-a2fd-5c4850841446'];
+    
+    return knownAdminEmails.includes(user.email || '') || knownAdminIds.includes(user.id);
+  };
+  
+  const isAdmin = checkIsAdmin();
 
   // Use the new focused hooks
   const { data: allUsers = [], isLoading: usersLoading, error: usersError } = useAdminUsers();
