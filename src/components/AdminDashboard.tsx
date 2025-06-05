@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,16 +69,17 @@ interface KYCDocument {
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(false);
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
+  const [adminCheckLoading, setAdminCheckLoading] = useState(true);
+  
+  // All hooks must be called before any conditional returns
+  const { user, signOut } = useAuth();
   const { systemControls, allUsers, auditLogs, kycDocuments, isLoading } = useAdminData();
   const { data: qrPaymentStats } = useQRPayments();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const { user, signOut } = useAuth();
 
-  // Check if current user is admin
-  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
-  const [adminCheckLoading, setAdminCheckLoading] = useState(true);
-
+  // Admin status check effect
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (!user) {
@@ -138,48 +140,6 @@ const AdminDashboard = () => {
     checkAdminStatus();
   }, [user]);
 
-  // If not admin, show access denied
-  if (adminCheckLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
-          <span className="text-gray-600">Checking admin privileges...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isCurrentUserAdmin) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-96">
-          <CardContent className="text-center py-12">
-            <Shield size={48} className="mx-auto mb-4 text-red-500" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
-            <p className="text-gray-600 mb-4">You need admin privileges to access this dashboard.</p>
-            <div className="text-sm text-gray-500 mb-4">
-              <p>Current User: {user?.email}</p>
-              <p>User ID: {user?.id}</p>
-            </div>
-            <Button onClick={() => signOut()} variant="outline">
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
   // Enhanced logging for debugging
   useEffect(() => {
     console.log('🔄 AdminDashboard data updated:');
@@ -221,6 +181,48 @@ const AdminDashboard = () => {
       });
     }
   }, [allUsers, kycDocuments, isLoading, isCurrentUserAdmin]);
+
+  // Now we can have conditional returns after all hooks have been called
+  if (adminCheckLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+          <span className="text-gray-600">Checking admin privileges...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isCurrentUserAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="w-96">
+          <CardContent className="text-center py-12">
+            <Shield size={48} className="mx-auto mb-4 text-red-500" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-4">You need admin privileges to access this dashboard.</p>
+            <div className="text-sm text-gray-500 mb-4">
+              <p>Current User: {user?.email}</p>
+              <p>User ID: {user?.id}</p>
+            </div>
+            <Button onClick={() => signOut()} variant="outline">
+              Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   // Function to manually refresh data
   const refreshData = () => {
