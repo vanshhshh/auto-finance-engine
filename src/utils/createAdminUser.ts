@@ -6,14 +6,14 @@ export const createAdminUser = async (userEmail: string) => {
     console.log('🔧 Setting up admin user for:', userEmail);
     
     // First, get the user by email from auth.users
-    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+    const { data, error: listError } = await supabase.auth.admin.listUsers();
     
     if (listError) {
       console.error('Error listing users:', listError);
       return { success: false, error: listError.message };
     }
     
-    const user = users.find(u => u.email === userEmail);
+    const user = data.users?.find(u => u.email === userEmail);
     
     if (!user) {
       console.error('User not found:', userEmail);
