@@ -13,7 +13,7 @@ export const createAdminUser = async (userEmail: string) => {
       return { success: false, error: listError.message };
     }
     
-    const user = data.users?.find(u => u.email === userEmail);
+    const user = data.users?.find((u: any) => u.email === userEmail);
     
     if (!user) {
       console.error('User not found:', userEmail);

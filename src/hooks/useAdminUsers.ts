@@ -6,29 +6,42 @@ import { useAuth } from '@/contexts/AuthContext';
 export const useAdminUsers = () => {
   const { user } = useAuth();
   
-  // Check if user is admin by checking their profile role
+  // Simple admin check function to avoid RLS recursion
+  const isKnownAdmin = () => {
+    if (!user) return false;
+    const knownAdminEmails = ['admin@example.com', 'admin@cbdc.com'];
+    const knownAdminIds = ['de121dc9-d461-4716-a2fd-5c4850841446'];
+    return knownAdminEmails.includes(user.email || '') || knownAdminIds.includes(user.id);
+  };
+
+  // Check current user's admin status from database
   const { data: currentUserProfile } = useQuery({
     queryKey: ['current-user-profile', user?.id],
     queryFn: async () => {
       if (!user) return null;
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching current user profile:', error);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching current user profile:', error);
+          return null;
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('Error in profile query:', error);
         return null;
       }
-      
-      return data;
     },
     enabled: !!user,
   });
 
-  const isAdmin = currentUserProfile?.role === 'admin';
+  const isAdmin = isKnownAdmin() || currentUserProfile?.role === 'admin';
 
   return useQuery({
     queryKey: ['admin-users'],
@@ -37,22 +50,10 @@ export const useAdminUsers = () => {
       console.log('🔐 Current admin user:', user?.email, 'Role:', currentUserProfile?.role);
       
       try {
-        // Get all profiles with explicit field selection
+        // Get all profiles directly without complex joins
         const { data: profiles, error } = await supabase
           .from('profiles')
-          .select(`
-            id,
-            user_id,
-            role,
-            wallet_address,
-            kyc_status,
-            wallet_approved,
-            approved_tokens,
-            nationality,
-            country_of_residence,
-            created_at,
-            updated_at
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -60,10 +61,7 @@ export const useAdminUsers = () => {
           throw error;
         }
 
-        console.log('✅ Profiles fetched successfully:');
-        console.log('📋 Total profiles returned:', profiles?.length || 0);
-        console.log('👥 Profile details:', profiles);
-
+        console.log('✅ Profiles fetched successfully:', profiles?.length || 0);
         return profiles || [];
       } catch (error) {
         console.error('💥 Error in useAdminUsers:', error);
@@ -72,8 +70,7 @@ export const useAdminUsers = () => {
     },
     enabled: isAdmin,
     refetchInterval: 10000,
-    retry: 3,
-    retryDelay: 2000,
-    staleTime: 5000,
+    retry: 2,
+    retryDelay: 1000,
   });
 };

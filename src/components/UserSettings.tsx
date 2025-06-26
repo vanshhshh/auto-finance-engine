@@ -16,8 +16,9 @@ const UserSettings = () => {
   const [activeTab, setActiveTab] = useState('kyc');
   const [uploading, setUploading] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
+  const [updating, setUpdating] = useState(false);
   const { user } = useAuth();
-  const { profile } = useWalletData();
+  const { profile, refetch: refetchProfile } = useWalletData();
   const { toast } = useToast();
 
   // Form states
@@ -39,13 +40,22 @@ const UserSettings = () => {
   const fetchUploadedDocuments = async () => {
     if (!user) return;
     
-    const { data } = await supabase
-      .from('kyc_documents')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('upload_date', { ascending: false });
-    
-    setUploadedDocs(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('kyc_documents')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('upload_date', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching documents:', error);
+        return;
+      }
+      
+      setUploadedDocs(data || []);
+    } catch (error) {
+      console.error('Error in fetchUploadedDocuments:', error);
+    }
   };
 
   const handleDocumentUpload = async (documentType: string, file: File) => {
@@ -88,13 +98,17 @@ const UserSettings = () => {
       if (dbError) throw dbError;
 
       // Update profile to indicate documents uploaded
-      await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
           kyc_documents_uploaded: true,
           kyc_status: 'under_review'
         })
         .eq('user_id', user.id);
+
+      if (profileError) {
+        console.error('Error updating profile:', profileError);
+      }
 
       toast({
         title: "Document Uploaded",
@@ -103,7 +117,9 @@ const UserSettings = () => {
       });
 
       fetchUploadedDocuments();
+      refetchProfile();
     } catch (error) {
+      console.error('Upload error:', error);
       toast({
         title: "Upload Failed",
         description: "Failed to upload document. Please try again.",
@@ -126,6 +142,8 @@ const UserSettings = () => {
       return;
     }
 
+    setUpdating(true);
+
     try {
       const { error } = await supabase
         .from('profiles')
@@ -139,12 +157,17 @@ const UserSettings = () => {
         description: "Your personal information has been updated.",
         className: "bg-blue-600 text-white border-blue-700",
       });
+
+      refetchProfile();
     } catch (error) {
+      console.error('Update error:', error);
       toast({
         title: "Update Failed",
         description: "Failed to update profile information.",
         variant: "destructive",
       });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -319,10 +342,10 @@ const UserSettings = () => {
 
               <Button 
                 onClick={updatePersonalInfo} 
-                disabled={!personalInfo.country_of_residence || !personalInfo.nationality}
+                disabled={updating || !personalInfo.country_of_residence || !personalInfo.nationality}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                Save Information
+                {updating ? 'Saving...' : 'Save Information'}
               </Button>
 
               {canProceedToKYC && (

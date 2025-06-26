@@ -6,29 +6,42 @@ import { useAuth } from '@/contexts/AuthContext';
 export const useAdminDocuments = () => {
   const { user } = useAuth();
   
-  // Check if user is admin by checking their profile role
+  // Simple admin check function to avoid RLS recursion
+  const isKnownAdmin = () => {
+    if (!user) return false;
+    const knownAdminEmails = ['admin@example.com', 'admin@cbdc.com'];
+    const knownAdminIds = ['de121dc9-d461-4716-a2fd-5c4850841446'];
+    return knownAdminEmails.includes(user.email || '') || knownAdminIds.includes(user.id);
+  };
+
+  // Check current user's admin status from database
   const { data: currentUserProfile } = useQuery({
     queryKey: ['current-user-profile', user?.id],
     queryFn: async () => {
       if (!user) return null;
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching current user profile:', error);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching current user profile:', error);
+          return null;
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('Error in profile query:', error);
         return null;
       }
-      
-      return data;
     },
     enabled: !!user,
   });
 
-  const isAdmin = currentUserProfile?.role === 'admin';
+  const isAdmin = isKnownAdmin() || currentUserProfile?.role === 'admin';
 
   return useQuery({
     queryKey: ['admin-documents'],
@@ -36,21 +49,10 @@ export const useAdminDocuments = () => {
       console.log('📄 Fetching KYC documents...');
       
       try {
-        // Get all KYC documents and join with profiles
+        // Get all KYC documents
         const { data: documents, error: docsError } = await supabase
           .from('kyc_documents')
-          .select(`
-            id,
-            user_id,
-            document_type,
-            status,
-            file_name,
-            file_path,
-            upload_date,
-            reviewed_at,
-            reviewed_by,
-            admin_notes
-          `)
+          .select('*')
           .order('upload_date', { ascending: false });
 
         if (docsError) {
@@ -61,13 +63,7 @@ export const useAdminDocuments = () => {
         // Get profiles separately to avoid join issues
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select(`
-            user_id,
-            wallet_address,
-            kyc_status,
-            nationality,
-            country_of_residence
-          `);
+          .select('user_id, wallet_address, kyc_status, nationality, country_of_residence');
 
         if (profilesError) {
           console.error('❌ Error fetching profiles:', profilesError);
@@ -83,7 +79,7 @@ export const useAdminDocuments = () => {
           };
         }) || [];
 
-        console.log('✅ Documents with profiles:', documentsWithProfiles);
+        console.log('✅ Documents with profiles:', documentsWithProfiles.length);
         return documentsWithProfiles;
       } catch (error) {
         console.error('💥 Error in useAdminDocuments:', error);
@@ -92,8 +88,7 @@ export const useAdminDocuments = () => {
     },
     enabled: isAdmin,
     refetchInterval: 10000,
-    retry: 3,
-    retryDelay: 2000,
-    staleTime: 5000,
+    retry: 2,
+    retryDelay: 1000,
   });
 };

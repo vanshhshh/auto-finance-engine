@@ -17,13 +17,9 @@ import {
   QrCode,
   FileText,
   Globe,
-  Smartphone,
-  CreditCard,
-  Brain,
   BarChart3,
   Scale,
   Download,
-  Eye,
   RefreshCw,
   LogOut
 } from 'lucide-react';
@@ -73,7 +69,6 @@ const AdminDashboard = () => {
   const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(true);
   
-  // All hooks must be called before any conditional returns
   const { user, signOut } = useAuth();
   const { systemControls, allUsers, auditLogs, kycDocuments, isLoading } = useAdminData();
   const { data: qrPaymentStats } = useQRPayments();
@@ -111,27 +106,14 @@ const AdminDashboard = () => {
         
         if (error) {
           console.error('❌ Error checking admin status:', error);
-          // If there's an error but user is known admin, still allow access
-          if (knownAdminEmails.includes(user.email || '') || knownAdminIds.includes(user.id)) {
-            setIsCurrentUserAdmin(true);
-          } else {
-            setIsCurrentUserAdmin(false);
-          }
+          setIsCurrentUserAdmin(false);
         } else {
           console.log('✅ Profile found:', profile);
           setIsCurrentUserAdmin(profile?.role === 'admin');
         }
       } catch (error) {
         console.error('❌ Error in admin check:', error);
-        // Fallback for known admin users
-        const knownAdminEmails = ['admin@example.com', 'admin@cbdc.com'];
-        const knownAdminIds = ['de121dc9-d461-4716-a2fd-5c4850841446'];
-        
-        if (knownAdminEmails.includes(user.email || '') || knownAdminIds.includes(user.id)) {
-          setIsCurrentUserAdmin(true);
-        } else {
-          setIsCurrentUserAdmin(false);
-        }
+        setIsCurrentUserAdmin(false);
       } finally {
         setAdminCheckLoading(false);
       }
@@ -140,49 +122,7 @@ const AdminDashboard = () => {
     checkAdminStatus();
   }, [user]);
 
-  // Enhanced logging for debugging
-  useEffect(() => {
-    console.log('🔄 AdminDashboard data updated:');
-    console.log('👥 All users:', allUsers);
-    console.log('👥 Users count:', allUsers?.length || 0);
-    console.log('📄 KYC documents:', kycDocuments);
-    console.log('🔄 Is loading:', isLoading);
-    console.log('🔐 Is current user admin:', isCurrentUserAdmin);
-    
-    if (allUsers && allUsers.length > 0) {
-      console.log('🎯 Users found:', allUsers.length);
-      allUsers.forEach((userProfile, index) => {
-        console.log(`User ${index + 1}:`, {
-          id: userProfile.id,
-          user_id: userProfile.user_id,
-          wallet_address: userProfile.wallet_address,
-          kyc_status: userProfile.kyc_status,
-          wallet_approved: userProfile.wallet_approved,
-          role: userProfile.role,
-          created_at: userProfile.created_at,
-          approved_tokens: userProfile.approved_tokens
-        });
-      });
-    } else {
-      console.log('⚠️ No users found in allUsers array');
-      console.log('🔍 Checking if data is loading:', isLoading);
-    }
-
-    if (kycDocuments && kycDocuments.length > 0) {
-      console.log('📄 KYC Documents found:', kycDocuments.length);
-      kycDocuments.forEach((doc, index) => {
-        console.log(`KYC Doc ${index + 1}:`, {
-          id: doc.id,
-          user_id: doc.user_id,
-          document_type: doc.document_type,
-          status: doc.status,
-          profiles: doc.profiles
-        });
-      });
-    }
-  }, [allUsers, kycDocuments, isLoading, isCurrentUserAdmin]);
-
-  // Now we can have conditional returns after all hooks have been called
+  // Show loading state while checking admin status
   if (adminCheckLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -236,8 +176,6 @@ const AdminDashboard = () => {
     user?.kyc_status === 'pending' || user?.kyc_status === 'under_review'
   ).length || 0;
   const approvedWallets = allUsers?.filter(user => user?.wallet_approved === true).length || 0;
-
-  console.log('📊 Dashboard Stats:', { totalUsers, pendingKYC, approvedWallets });
 
   const approveUser = async (userId: string) => {
     try {
@@ -366,18 +304,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Show loading state while checking admin status
-  if (isLoading || (!isCurrentUserAdmin && user)) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
-          <span className="text-gray-600">Loading admin dashboard...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -393,7 +319,7 @@ const AdminDashboard = () => {
               </div>
             )}
             <div className="mt-2 text-sm text-gray-500">
-              Admin Status: {isCurrentUserAdmin ? 'Confirmed' : 'Checking...'} | User: {user?.email} | Total Users: {totalUsers} | Loading: {isLoading ? 'Yes' : 'No'}
+              Admin Status: {isCurrentUserAdmin ? 'Confirmed' : 'Checking...'} | User: {user?.email} | Total Users: {totalUsers}
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -427,10 +353,6 @@ const AdminDashboard = () => {
               { id: 'user-management', label: 'User Management', icon: Users },
               { id: 'kyc-verification', label: 'KYC Verification', icon: FileText },
               { id: 'cbdc-countries', label: 'CBDC Countries', icon: Globe },
-              { id: 'admin-controls', label: 'Admin Controls', icon: Settings },
-              { id: 'wallet-management', label: 'Wallet Management', icon: Wallet },
-              { id: 'qr-payments', label: 'QR Payments', icon: QrCode },
-              { id: 'compliance', label: 'Compliance', icon: Scale },
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -514,9 +436,6 @@ const AdminDashboard = () => {
                 </Badge>
               </CardTitle>
               <p className="text-sm text-gray-600">Manage user accounts and wallet approvals</p>
-              <div className="text-xs text-gray-500">
-                Debug Info: Loading: {isLoading ? 'Yes' : 'No'} | Users Array Length: {allUsers?.length || 0}
-              </div>
             </CardHeader>
             <CardContent>
               {isLoading && (
@@ -549,15 +468,6 @@ const AdminDashboard = () => {
                           {userProfile.wallet_approved ? 'APPROVED' : 'PENDING'}
                         </Badge>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Created: {new Date(userProfile.created_at).toLocaleDateString()}
-                      </div>
-                      {userProfile.approved_tokens && Array.isArray(userProfile.approved_tokens) && userProfile.approved_tokens.length > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Approved Tokens: {userProfile.approved_tokens.slice(0, 5).join(', ')}
-                          {userProfile.approved_tokens.length > 5 && ` +${userProfile.approved_tokens.length - 5} more`}
-                        </div>
-                      )}
                     </div>
                     <div className="flex gap-2">
                       {userProfile.kyc_status !== 'approved' && (
@@ -634,9 +544,6 @@ const AdminDashboard = () => {
                         <div className="text-xs text-gray-500">
                           Uploaded: {new Date(doc.upload_date).toLocaleDateString()}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          User ID: {doc.user_id}
-                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={`${
@@ -645,21 +552,6 @@ const AdminDashboard = () => {
                         } text-white`}>
                           {doc.status?.toUpperCase() || 'PENDING'}
                         </Badge>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <span className="text-gray-600">Country:</span> {doc?.profiles?.country_of_residence || 'Not specified'}
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Nationality:</span> {doc?.profiles?.nationality || 'Not specified'}
-                      </div>
-                      <div>
-                        <span className="text-gray-600">File:</span> {doc.file_name}
-                      </div>
-                      <div>
-                        <span className="text-gray-600">KYC Status:</span> {doc?.profiles?.kyc_status || 'pending'}
                       </div>
                     </div>
 
@@ -696,18 +588,6 @@ const AdminDashboard = () => {
                         </>
                       )}
                     </div>
-
-                    {doc.admin_notes && (
-                      <div className="mt-3 p-3 bg-gray-50 rounded">
-                        <strong>Admin Notes:</strong> {doc.admin_notes}
-                      </div>
-                    )}
-
-                    {doc.reviewed_at && (
-                      <div className="mt-2 text-xs text-gray-500">
-                        Reviewed: {new Date(doc.reviewed_at).toLocaleString()} by {doc.reviewed_by}
-                      </div>
-                    )}
                   </div>
                 )) : (
                   <div className="text-center py-8 text-gray-600">
@@ -723,141 +603,6 @@ const AdminDashboard = () => {
                     </Button>
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'admin-controls' && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Controls</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium">Maintenance Mode</div>
-                      <div className="text-sm text-gray-600">Temporarily disable user access</div>
-                    </div>
-                    <Badge className="bg-green-600 text-white">Active</Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium">New User Registrations</div>
-                      <div className="text-sm text-gray-600">Allow new users to register</div>
-                    </div>
-                    <Badge className="bg-green-600 text-white">Enabled</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium">Transaction Processing</div>
-                      <div className="text-sm text-gray-600">Process CBDC transactions</div>
-                    </div>
-                    <Badge className="bg-green-600 text-white">Active</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {activeTab === 'wallet-management' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Wallet Management</CardTitle>
-              <p className="text-sm text-gray-600">Manage user wallets and CBDC balances</p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {allUsers?.filter(u => u.wallet_approved).map((user) => (
-                  <div key={user.id} className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium">{user.wallet_address}</div>
-                      <Badge className="bg-green-600 text-white">Approved</Badge>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">eINR Balance:</span>
-                        <div className="font-medium">₹0.00</div>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">eUSD Balance:</span>
-                        <div className="font-medium">$0.00</div>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">eAED Balance:</span>
-                        <div className="font-medium">د.إ0.00</div>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Last Activity: {user.updated_at ? new Date(user.updated_at).toLocaleDateString() : 'N/A'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'qr-payments' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>QR Payment System</CardTitle>
-              <p className="text-sm text-gray-600">Monitor and manage QR code payment transactions</p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {qrPaymentStats?.qrCodesGenerated || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">QR Codes Generated Today</div>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
-                    {qrPaymentStats?.successfulPayments || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">Successful Payments</div>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    ₹{qrPaymentStats?.totalVolume?.toFixed(2) || '0.00'}
-                  </div>
-                  <div className="text-sm text-gray-600">Total Volume Today</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'compliance' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Compliance Monitoring</CardTitle>
-              <p className="text-sm text-gray-600">Real-time compliance events and monitoring</p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {auditLogs?.slice(0, 10).map((log) => (
-                  <div key={log.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-blue-100">
-                        <Shield className="text-blue-600" size={16} />
-                      </div>
-                      <div>
-                        <div className="font-medium">{log.action}</div>
-                        <div className="text-sm text-gray-600">
-                          {new Date(log.created_at).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                    <Badge className="bg-green-600 text-white">Compliant</Badge>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
