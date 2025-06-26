@@ -1,32 +1,57 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   Menu, 
   X, 
-  Wallet, 
+  ChevronDown, 
   Globe, 
   CreditCard, 
   Building, 
-  HelpCircle, 
+  HelpCircle,
+  User,
+  LogOut,
+  Settings,
   Shield,
-  ChevronDown 
+  Banknote,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ModernNavbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isServicesOpen, setIsServicesOpen] = useState(false);
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
   const navigation = [
-    { name: 'Send Money', href: '/transfer', icon: <Globe className="w-4 h-4" /> },
-    { name: 'Exchange', href: '/exchange', icon: <Wallet className="w-4 h-4" /> },
-    { name: 'Cards', href: '/cards', icon: <CreditCard className="w-4 h-4" /> },
-    { name: 'Business', href: '/business', icon: <Building className="w-4 h-4" /> },
-    { name: 'Help', href: '/help', icon: <HelpCircle className="w-4 h-4" /> },
+    { 
+      name: 'CBDC Transfer', 
+      href: '/transfer', 
+      icon: <Banknote className="w-4 h-4" />,
+      description: 'Send money globally with Central Bank Digital Currencies'
+    },
+    { 
+      name: 'Exchange', 
+      href: '/exchange', 
+      icon: <TrendingUp className="w-4 h-4" />,
+      description: 'Convert between CBDCs at real-time rates'
+    },
+    { 
+      name: 'Cards', 
+      href: '/cards', 
+      icon: <CreditCard className="w-4 h-4" />,
+      description: 'Virtual cards for global spending'
+    },
+    { 
+      name: 'Business', 
+      href: '/business', 
+      icon: <Building className="w-4 h-4" />,
+      description: 'CBDC solutions for businesses'
+    }
   ];
 
   const handleSignOut = async () => {
@@ -35,162 +60,176 @@ const ModernNavbar = () => {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200">
+    <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-200 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <button 
-              onClick={() => navigate('/')}
-              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-white" />
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <Globe className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">GateFinance</span>
-            </button>
+              <span className="text-xl font-bold text-gray-900">CBDCPay</span>
+              <Badge className="bg-blue-100 text-blue-700 text-xs px-2 py-1">
+                CBDC
+              </Badge>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navigation.map((item) => (
-              <button
+              <Link
                 key={item.name}
-                onClick={() => navigate(item.href)}
-                className="flex items-center space-x-1 text-gray-700 hover:text-blue-600 transition-colors font-medium"
+                to={item.href}
+                className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  location.pathname === item.href
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                }`}
               >
                 {item.icon}
                 <span>{item.name}</span>
-              </button>
+              </Link>
             ))}
+            
+            <Link
+              to="/help"
+              className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                location.pathname === '/help'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span>Help</span>
+            </Link>
           </div>
 
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
+          {/* User Menu */}
+          <div className="flex items-center space-x-4">
             {user ? (
-              <div className="relative">
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={() => navigate('/dashboard')}
+                  variant="ghost"
+                  className="text-gray-700 hover:text-blue-600"
                 >
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm">
-                    {user.email?.[0]?.toUpperCase()}
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                </button>
-                
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-                    <button
-                      onClick={() => navigate('/dashboard')}
-                      className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      Dashboard
-                    </button>
-                    <button
-                      onClick={() => navigate('/security')}
-                      className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
-                    >
-                      <Shield className="w-4 h-4" />
-                      <span>Security</span>
-                    </button>
-                    <hr className="my-2" />
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                )}
+                  <User className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+                <Button
+                  onClick={handleSignOut}
+                  variant="outline"
+                  size="sm"
+                  className="text-gray-700 hover:text-red-600"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
               </div>
             ) : (
-              <>
-                <Button 
-                  variant="ghost" 
+              <div className="flex items-center space-x-2">
+                <Button
                   onClick={() => navigate('/auth')}
-                  className="font-semibold"
+                  variant="ghost"
+                  className="text-gray-700 hover:text-blue-600"
                 >
                   Sign In
                 </Button>
-                <Button 
+                <Button
                   onClick={() => navigate('/auth')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 rounded-lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Get Started
                 </Button>
-              </>
+              </div>
             )}
-          </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+            {/* Mobile menu button */}
             <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="md:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
         {/* Mobile Navigation */}
-        {isOpen && (
+        {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
-            <div className="space-y-4">
+            <div className="space-y-2">
               {navigation.map((item) => (
-                <button
+                <Link
                   key={item.name}
-                  onClick={() => {
-                    navigate(item.href);
-                    setIsOpen(false);
-                  }}
-                  className="flex items-center space-x-2 w-full text-left p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  to={item.href}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    location.pathname === item.href
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   {item.icon}
-                  <span>{item.name}</span>
-                </button>
+                  <div>
+                    <div>{item.name}</div>
+                    <div className="text-xs text-gray-500">{item.description}</div>
+                  </div>
+                </Link>
               ))}
               
-              <hr className="my-4" />
-              
+              <Link
+                to="/help"
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  location.pathname === '/help'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>Help & Support</span>
+              </Link>
+
               {user ? (
-                <div className="space-y-2">
-                  <button
+                <div className="space-y-2 pt-4 border-t border-gray-200">
+                  <Button
                     onClick={() => {
                       navigate('/dashboard');
-                      setIsOpen(false);
+                      setIsMenuOpen(false);
                     }}
-                    className="w-full text-left p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    variant="ghost"
+                    className="w-full justify-start text-gray-700 hover:text-blue-600"
                   >
+                    <User className="w-4 h-4 mr-2" />
                     Dashboard
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleSignOut();
-                      setIsOpen(false);
-                    }}
-                    className="w-full text-left p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  </Button>
+                  <Button
+                    onClick={handleSignOut}
+                    variant="ghost"
+                    className="w-full justify-start text-gray-700 hover:text-red-600"
                   >
+                    <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
+                <div className="space-y-2 pt-4 border-t border-gray-200">
+                  <Button
                     onClick={() => {
                       navigate('/auth');
-                      setIsOpen(false);
+                      setIsMenuOpen(false);
                     }}
-                    className="w-full"
+                    variant="ghost"
+                    className="w-full justify-start text-gray-700 hover:text-blue-600"
                   >
                     Sign In
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => {
                       navigate('/auth');
-                      setIsOpen(false);
+                      setIsMenuOpen(false);
                     }}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   >
