@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export const useWalletData = () => {
   const { user } = useAuth();
 
-  const { data: profile } = useQuery({
+  const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user) throw new Error('User not authenticated');
@@ -135,5 +135,6 @@ export const useWalletData = () => {
     notifications,
     exchangeRates,
     complianceEvents,
+    refetch: refetchProfile,
   };
 };
