@@ -64,33 +64,16 @@ export const useAdminUsers = () => {
         console.log('📋 Total profiles returned:', profiles?.length || 0);
         console.log('👥 Profile details:', profiles);
 
-        // Ensure all required fields are present in the returned data
-        const typedProfiles = profiles?.map(profile => ({
-          id: profile.id,
-          user_id: profile.user_id,
-          role: profile.role || 'user',
-          wallet_address: profile.wallet_address,
-          kyc_status: profile.kyc_status || 'pending',
-          wallet_approved: profile.wallet_approved || false,
-          approved_tokens: profile.approved_tokens || [],
-          nationality: profile.nationality,
-          country_of_residence: profile.country_of_residence,
-          created_at: profile.created_at,
-          updated_at: profile.updated_at
-        })) || [];
-
-        console.log('🎯 Typed profiles:', typedProfiles);
-        return typedProfiles;
+        return profiles || [];
       } catch (error) {
         console.error('💥 Error in useAdminUsers:', error);
         throw error;
       }
     },
     enabled: isAdmin,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
     retry: 3,
-    retryDelay: 1000,
-    staleTime: 0,
-    gcTime: 0,
+    retryDelay: 2000,
+    staleTime: 5000,
   });
 };

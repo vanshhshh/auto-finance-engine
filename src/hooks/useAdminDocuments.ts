@@ -91,7 +91,9 @@ export const useAdminDocuments = () => {
       }
     },
     enabled: isAdmin,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
     retry: 3,
+    retryDelay: 2000,
+    staleTime: 5000,
   });
 };
