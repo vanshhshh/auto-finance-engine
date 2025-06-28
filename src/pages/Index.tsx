@@ -23,7 +23,8 @@ import {
   Banknote,
   University,
   Target,
-  Award
+  Award,
+  HelpCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import ModernNavbar from '@/components/ModernNavbar';
