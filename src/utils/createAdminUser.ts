@@ -49,14 +49,49 @@ export const promoteCurrentUserToAdmin = async () => {
       return { success: false, error: 'No user logged in' };
     }
     
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: 'admin' })
-      .eq('user_id', user.id);
+    console.log('🔧 Promoting user to admin:', user.email, user.id);
     
-    if (error) {
-      console.error('Error promoting user to admin:', error);
-      return { success: false, error: error.message };
+    // First check if profile exists, if not create it
+    const { data: existingProfile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching profile:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+    
+    if (!existingProfile) {
+      // Create profile if it doesn't exist
+      console.log('📝 Creating profile for user:', user.id);
+      const { error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: user.id,
+          role: 'admin',
+          wallet_address: '0x' + user.id.replace(/-/g, '').substring(0, 40),
+          kyc_status: 'approved',
+          wallet_approved: true
+        });
+      
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return { success: false, error: createError.message };
+      }
+    } else {
+      // Update existing profile
+      console.log('🔄 Updating existing profile to admin');
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: 'admin' })
+        .eq('user_id', user.id);
+      
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
+        return { success: false, error: updateError.message };
+      }
     }
     
     console.log('✅ Successfully promoted current user to admin');
