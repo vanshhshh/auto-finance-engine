@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ModernNavbar } from '@/components/ModernNavbar';
-import { Footer } from '@/components/Footer';
+import Footer from '@/components/Footer';
 
 // Pages
 import Index from '@/pages/Index';

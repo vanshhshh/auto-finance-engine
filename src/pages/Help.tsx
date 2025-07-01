@@ -23,7 +23,7 @@ import {
   CreditCard,
   Send
 } from 'lucide-react';
-import ModernNavbar from '@/components/ModernNavbar';
+import { ModernNavbar } from '@/components/ModernNavbar';
 import Footer from '@/components/Footer';
 
 const Help = () => {

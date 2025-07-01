@@ -1,6 +1,6 @@
 
 import React from 'react';
-import ModernNavbar from '@/components/ModernNavbar';
+import { ModernNavbar } from '@/components/ModernNavbar';
 import Footer from '@/components/Footer';
 import CBDCTransfer from '@/components/CBDCTransfer';
 
