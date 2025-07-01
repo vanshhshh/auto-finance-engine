@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export const useAdminDocuments = () => {
   const { user } = useAuth();
   
-  // Simple admin check function to avoid RLS recursion
+  // Simple admin check function
   const isKnownAdmin = () => {
     if (!user) return false;
     const knownAdminEmails = ['admin@example.com', 'admin@cbdc.com'];
@@ -14,34 +14,7 @@ export const useAdminDocuments = () => {
     return knownAdminEmails.includes(user.email || '') || knownAdminIds.includes(user.id);
   };
 
-  // Check current user's admin status from database
-  const { data: currentUserProfile } = useQuery({
-    queryKey: ['current-user-profile', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching current user profile:', error);
-          return null;
-        }
-        
-        return data;
-      } catch (error) {
-        console.error('Error in profile query:', error);
-        return null;
-      }
-    },
-    enabled: !!user,
-  });
-
-  const isAdmin = isKnownAdmin() || currentUserProfile?.role === 'admin';
+  const isAdmin = isKnownAdmin();
 
   return useQuery({
     queryKey: ['admin-documents'],
@@ -49,7 +22,7 @@ export const useAdminDocuments = () => {
       console.log('📄 Fetching KYC documents...');
       
       try {
-        // Get all KYC documents
+        // Get KYC documents directly
         const { data: documents, error: docsError } = await supabase
           .from('kyc_documents')
           .select('*')
@@ -57,38 +30,18 @@ export const useAdminDocuments = () => {
 
         if (docsError) {
           console.error('❌ Error fetching documents:', docsError);
-          throw docsError;
+          return [];
         }
 
-        // Get profiles separately to avoid join issues
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('user_id, wallet_address, kyc_status, nationality, country_of_residence');
-
-        if (profilesError) {
-          console.error('❌ Error fetching profiles:', profilesError);
-          throw profilesError;
-        }
-
-        // Manually join the data
-        const documentsWithProfiles = documents?.map(doc => {
-          const profile = profiles?.find(p => p.user_id === doc.user_id);
-          return {
-            ...doc,
-            profiles: profile || null
-          };
-        }) || [];
-
-        console.log('✅ Documents with profiles:', documentsWithProfiles.length);
-        return documentsWithProfiles;
+        console.log('✅ Documents fetched successfully:', documents?.length || 0);
+        return documents || [];
       } catch (error) {
         console.error('💥 Error in useAdminDocuments:', error);
-        throw error;
+        return [];
       }
     },
     enabled: isAdmin,
-    refetchInterval: 10000,
-    retry: 2,
-    retryDelay: 1000,
+    retry: 1,
+    refetchInterval: false,
   });
 };

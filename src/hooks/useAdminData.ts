@@ -8,11 +8,11 @@ import { useAdminDocuments } from './useAdminDocuments';
 export const useAdminData = () => {
   const { user } = useAuth();
   
-  // Check if user is admin by checking known admin users or database
+  // Check if user is admin by known identifiers only
   const checkIsAdmin = () => {
     if (!user) return false;
     
-    // Known admin emails and IDs
+    // Known admin emails and IDs - expand this list as needed
     const knownAdminEmails = ['admin@example.com', 'admin@cbdc.com'];
     const knownAdminIds = ['de121dc9-d461-4716-a2fd-5c4850841446'];
     
@@ -21,74 +21,84 @@ export const useAdminData = () => {
   
   const isAdmin = checkIsAdmin();
 
-  // Use the new focused hooks
+  // Use the new focused hooks with proper error handling
   const { data: allUsers = [], isLoading: usersLoading, error: usersError } = useAdminUsers();
   const { data: kycDocuments = [], isLoading: docsLoading, error: docsError } = useAdminDocuments();
 
-  // Log any errors
-  if (usersError) console.error('👥 Users error:', usersError);
-  if (docsError) console.error('📄 Documents error:', docsError);
-
-  const { data: systemControls = [] } = useQuery({
+  // System controls with better error handling
+  const { data: systemControls = [], isLoading: controlsLoading } = useQuery({
     queryKey: ['system-controls'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('system_controls')
-        .select('*');
-      
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from('system_controls')
+          .select('*');
+        
+        if (error) {
+          console.error('System controls error:', error);
+          return [];
+        }
+        return data || [];
+      } catch (error) {
+        console.error('System controls query failed:', error);
+        return [];
+      }
     },
     enabled: isAdmin,
+    retry: 1,
+    refetchInterval: false,
   });
 
-  const { data: complianceEvents = [] } = useQuery({
-    queryKey: ['admin-audit-logs'],
+  // Compliance events with better error handling
+  const { data: complianceEvents = [], isLoading: complianceLoading } = useQuery({
+    queryKey: ['compliance-events'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from('audit_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        if (error) {
+          console.error('Compliance events error:', error);
+          return [];
+        }
+        return data || [];
+      } catch (error) {
+        console.error('Compliance events query failed:', error);
+        return [];
+      }
     },
     enabled: isAdmin,
+    retry: 1,
+    refetchInterval: false,
   });
 
-  const { data: auditLogs = [] } = useQuery({
+  // Audit logs with better error handling
+  const { data: auditLogs = [], isLoading: auditLoading } = useQuery({
     queryKey: ['audit-logs'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from('audit_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        if (error) {
+          console.error('Audit logs error:', error);
+          return [];
+        }
+        return data || [];
+      } catch (error) {
+        console.error('Audit logs query failed:', error);
+        return [];
+      }
     },
     enabled: isAdmin,
-  });
-
-  const { data: failingRules = [] } = useQuery({
-    queryKey: ['failing-rules'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rule_executions')
-        .select(`
-          *,
-          rule:programmable_rules(*)
-        `)
-        .eq('success', false)
-        .order('executed_at', { ascending: false })
-        .limit(20);
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: isAdmin,
+    retry: 1,
+    refetchInterval: false,
   });
 
   return {
@@ -98,7 +108,7 @@ export const useAdminData = () => {
     kycDocuments,
     complianceEvents,
     auditLogs,
-    failingRules,
-    isLoading: usersLoading || docsLoading,
+    isLoading: usersLoading || docsLoading || controlsLoading || complianceLoading || auditLoading,
+    hasErrors: !!usersError || !!docsError,
   };
 };

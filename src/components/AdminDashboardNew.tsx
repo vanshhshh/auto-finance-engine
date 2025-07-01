@@ -8,6 +8,7 @@ import { ProgrammableLockManager } from './ProgrammableLockManager';
 import { ConditionalTriggerManager } from './ConditionalTriggerManager';
 import { useAdminData } from '@/hooks/useAdminData';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Users, 
   FileText, 
@@ -18,7 +19,8 @@ import {
   Lock,
   Zap,
   DollarSign,
-  Activity
+  Activity,
+  AlertTriangle
 } from 'lucide-react';
 import { DeveloperSandbox } from './DeveloperSandbox';
 
@@ -29,8 +31,27 @@ export const AdminDashboardNew = () => {
     systemControls, 
     complianceEvents, 
     auditLogs, 
-    isLoading 
+    isLoading,
+    isAdmin,
+    hasErrors
   } = useAdminData();
+
+  // Show access denied if not admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Shield className="w-12 h-12 mx-auto text-red-500 mb-4" />
+            <CardTitle className="text-red-600">Access Denied</CardTitle>
+            <CardDescription>
+              You don't have permission to access the admin dashboard.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   const stats = [
     {
@@ -59,8 +80,37 @@ export const AdminDashboardNew = () => {
     },
   ];
 
+  // Loading state
   if (isLoading) {
-    return <div>Loading admin dashboard...</div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-3 w-32" />
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -70,6 +120,12 @@ export const AdminDashboardNew = () => {
         <p className="text-gray-600">
           Comprehensive management for Central Bank Digital Currency infrastructure
         </p>
+        {hasErrors && (
+          <div className="mt-2 flex items-center gap-2 text-amber-600">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-sm">Some data may be limited due to connection issues</span>
+          </div>
+        )}
       </div>
 
       {/* Stats Overview */}
@@ -154,26 +210,33 @@ export const AdminDashboardNew = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {allUsers?.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{user.wallet_address}</p>
-                      <p className="text-sm text-gray-600">
-                        KYC: {user.kyc_status} • Role: {user.role}
-                      </p>
+              {allUsers?.length > 0 ? (
+                <div className="space-y-4">
+                  {allUsers.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{user.wallet_address || 'No wallet address'}</p>
+                        <p className="text-sm text-gray-600">
+                          KYC: {user.kyc_status || 'pending'} • Role: {user.role || 'user'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={user.kyc_status === 'approved' ? 'default' : 'secondary'}>
+                          {user.kyc_status || 'pending'}
+                        </Badge>
+                        <Badge variant={user.role === 'admin' ? 'destructive' : 'outline'}>
+                          {user.role || 'user'}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={user.kyc_status === 'approved' ? 'default' : 'secondary'}>
-                        {user.kyc_status}
-                      </Badge>
-                      <Badge variant={user.role === 'admin' ? 'destructive' : 'outline'}>
-                        {user.role}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No users found</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -187,21 +250,28 @@ export const AdminDashboardNew = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {kycDocuments?.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{doc.document_type}</p>
-                      <p className="text-sm text-gray-600">
-                        Uploaded: {new Date(doc.upload_date).toLocaleDateString()}
-                      </p>
+              {kycDocuments?.length > 0 ? (
+                <div className="space-y-4">
+                  {kycDocuments.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{doc.document_type}</p>
+                        <p className="text-sm text-gray-600">
+                          Uploaded: {new Date(doc.upload_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant={doc.status === 'approved' ? 'default' : 'secondary'}>
+                        {doc.status}
+                      </Badge>
                     </div>
-                    <Badge variant={doc.status === 'approved' ? 'default' : 'secondary'}>
-                      {doc.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No KYC documents found</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -217,27 +287,19 @@ export const AdminDashboardNew = () => {
             <CardContent>
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium mb-2">Recent Compliance Events</h4>
-                  <div className="space-y-2">
-                    {complianceEvents?.slice(0, 5).map((event) => (
-                      <div key={event.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
-                        <span>{event.event_type}</span>
-                        <span className="text-gray-600">{new Date(event.created_at).toLocaleDateString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-2">Audit Logs</h4>
-                  <div className="space-y-2">
-                    {auditLogs?.slice(0, 5).map((log) => (
-                      <div key={log.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
-                        <span>{log.action}</span>
-                        <span className="text-gray-600">{new Date(log.created_at).toLocaleDateString()}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <h4 className="font-medium mb-2">Recent Audit Logs</h4>
+                  {auditLogs?.length > 0 ? (
+                    <div className="space-y-2">
+                      {auditLogs.slice(0, 5).map((log) => (
+                        <div key={log.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
+                          <span>{log.action}</span>
+                          <span className="text-gray-600">{new Date(log.created_at).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No audit logs available</p>
+                  )}
                 </div>
               </div>
             </CardContent>
