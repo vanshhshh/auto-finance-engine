@@ -9,6 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      account_esip_connections: {
+        Row: {
+          account_id: string
+          created_at: string | null
+          esip_id: string
+          id: string
+          permissions: Json
+          status: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string | null
+          esip_id: string
+          id?: string
+          permissions?: Json
+          status?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string | null
+          esip_id?: string
+          id?: string
+          permissions?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_esip_connections_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_esip_connections_esip_id_fkey"
+            columns: ["esip_id"]
+            isOneToOne: false
+            referencedRelation: "ecosystem_service_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aml_alerts: {
         Row: {
           alert_type: string
@@ -94,6 +136,122 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      api_request_logs: {
+        Row: {
+          created_at: string | null
+          endpoint: string
+          esip_id: string | null
+          id: string
+          idempotency_key: string | null
+          ip_address: unknown | null
+          jws_signature: string | null
+          method: string
+          pip_id: string | null
+          request_body: Json | null
+          request_headers: Json | null
+          response_body: Json | null
+          response_status: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint: string
+          esip_id?: string | null
+          id?: string
+          idempotency_key?: string | null
+          ip_address?: unknown | null
+          jws_signature?: string | null
+          method: string
+          pip_id?: string | null
+          request_body?: Json | null
+          request_headers?: Json | null
+          response_body?: Json | null
+          response_status?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          endpoint?: string
+          esip_id?: string | null
+          id?: string
+          idempotency_key?: string | null
+          ip_address?: unknown | null
+          jws_signature?: string | null
+          method?: string
+          pip_id?: string | null
+          request_body?: Json | null
+          request_headers?: Json | null
+          response_body?: Json | null
+          response_status?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_request_logs_esip_id_fkey"
+            columns: ["esip_id"]
+            isOneToOne: false
+            referencedRelation: "ecosystem_service_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_request_logs_pip_id_fkey"
+            columns: ["pip_id"]
+            isOneToOne: false
+            referencedRelation: "payment_interface_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      atomic_swaps: {
+        Row: {
+          counterparty_pip: string
+          created_at: string | null
+          hash_lock: string
+          id: string
+          initiator_account_id: string
+          receive_amount: number
+          receive_token: string
+          send_amount: number
+          send_token: string
+          status: string
+          time_lock: string
+        }
+        Insert: {
+          counterparty_pip: string
+          created_at?: string | null
+          hash_lock: string
+          id?: string
+          initiator_account_id: string
+          receive_amount: number
+          receive_token: string
+          send_amount: number
+          send_token: string
+          status?: string
+          time_lock: string
+        }
+        Update: {
+          counterparty_pip?: string
+          created_at?: string | null
+          hash_lock?: string
+          id?: string
+          initiator_account_id?: string
+          receive_amount?: number
+          receive_token?: string
+          send_amount?: number
+          send_token?: string
+          status?: string
+          time_lock?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atomic_swaps_initiator_account_id_fkey"
+            columns: ["initiator_account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -215,6 +373,53 @@ export type Database = {
         }
         Relationships: []
       }
+      cbdc_accounts: {
+        Row: {
+          account_type: string
+          alias_email: string | null
+          alias_phone: string | null
+          country_code: string
+          created_at: string | null
+          id: string
+          parent_account_id: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_type: string
+          alias_email?: string | null
+          alias_phone?: string | null
+          country_code: string
+          created_at?: string | null
+          id?: string
+          parent_account_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          alias_email?: string | null
+          alias_phone?: string | null
+          country_code?: string
+          created_at?: string | null
+          id?: string
+          parent_account_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbdc_accounts_parent_account_id_fkey"
+            columns: ["parent_account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compliance_events: {
         Row: {
           created_at: string | null
@@ -284,6 +489,143 @@ export type Database = {
         }
         Relationships: []
       }
+      conditional_triggers: {
+        Row: {
+          account_id: string
+          action_config: Json
+          action_type: string
+          conditions: Json
+          created_at: string | null
+          id: string
+          last_executed: string | null
+          status: string
+          trigger_type: string
+        }
+        Insert: {
+          account_id: string
+          action_config: Json
+          action_type: string
+          conditions: Json
+          created_at?: string | null
+          id?: string
+          last_executed?: string | null
+          status?: string
+          trigger_type: string
+        }
+        Update: {
+          account_id?: string
+          action_config?: Json
+          action_type?: string
+          conditions?: Json
+          created_at?: string | null
+          id?: string
+          last_executed?: string | null
+          status?: string
+          trigger_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conditional_triggers_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      country_banking_methods: {
+        Row: {
+          configuration: Json
+          country_code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          method_name: string
+          method_type: string
+          provider_name: string
+        }
+        Insert: {
+          configuration?: Json
+          country_code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          method_name: string
+          method_type: string
+          provider_name: string
+        }
+        Update: {
+          configuration?: Json
+          country_code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          method_name?: string
+          method_type?: string
+          provider_name?: string
+        }
+        Relationships: []
+      }
+      developer_sandboxes: {
+        Row: {
+          api_key: string
+          created_at: string | null
+          developer_id: string
+          environment_config: Json
+          id: string
+          is_active: boolean | null
+          sandbox_name: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string | null
+          developer_id: string
+          environment_config?: Json
+          id?: string
+          is_active?: boolean | null
+          sandbox_name: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string | null
+          developer_id?: string
+          environment_config?: Json
+          id?: string
+          is_active?: boolean | null
+          sandbox_name?: string
+        }
+        Relationships: []
+      }
+      ecosystem_service_providers: {
+        Row: {
+          api_key: string
+          created_at: string | null
+          id: string
+          name: string
+          permissions: Json
+          provider_type: string
+          status: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string | null
+          id?: string
+          name: string
+          permissions?: Json
+          provider_type: string
+          status?: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          permissions?: Json
+          provider_type?: string
+          status?: string
+        }
+        Relationships: []
+      }
       fraud_rules: {
         Row: {
           action: string
@@ -319,6 +661,59 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      fund_operations: {
+        Row: {
+          account_id: string
+          amount: number
+          bank_account_id: string | null
+          bank_method: string
+          completed_at: string | null
+          country_code: string
+          created_at: string | null
+          id: string
+          operation_type: string
+          reference_id: string | null
+          status: string
+          token_symbol: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          bank_account_id?: string | null
+          bank_method: string
+          completed_at?: string | null
+          country_code: string
+          created_at?: string | null
+          id?: string
+          operation_type: string
+          reference_id?: string | null
+          status?: string
+          token_symbol: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          bank_account_id?: string | null
+          bank_method?: string
+          completed_at?: string | null
+          country_code?: string
+          created_at?: string | null
+          id?: string
+          operation_type?: string
+          reference_id?: string | null
+          status?: string
+          token_symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_operations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fx_rates: {
         Row: {
@@ -488,6 +883,53 @@ export type Database = {
         }
         Relationships: []
       }
+      offline_operations: {
+        Row: {
+          account_id: string
+          amount: number
+          completed_at: string | null
+          created_at: string | null
+          device_id: string
+          device_type: string
+          id: string
+          operation_type: string
+          status: string
+          token_symbol: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          completed_at?: string | null
+          created_at?: string | null
+          device_id: string
+          device_type: string
+          id?: string
+          operation_type: string
+          status?: string
+          token_symbol: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          completed_at?: string | null
+          created_at?: string | null
+          device_id?: string
+          device_type?: string
+          id?: string
+          operation_type?: string
+          status?: string
+          token_symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offline_operations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           compliance_score: number | null
@@ -518,6 +960,36 @@ export type Database = {
           name?: string
           type?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      payment_interface_providers: {
+        Row: {
+          api_key: string
+          country_code: string
+          created_at: string | null
+          id: string
+          name: string
+          public_key: string
+          status: string
+        }
+        Insert: {
+          api_key: string
+          country_code: string
+          created_at?: string | null
+          id?: string
+          name: string
+          public_key: string
+          status?: string
+        }
+        Update: {
+          api_key?: string
+          country_code?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          public_key?: string
+          status?: string
         }
         Relationships: []
       }
@@ -596,6 +1068,59 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_requests_advanced: {
+        Row: {
+          amount: number
+          authentication_method: string | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_authenticated: boolean | null
+          payer_pip: string
+          requester_account_id: string
+          status: string
+          token_symbol: string
+        }
+        Insert: {
+          amount: number
+          authentication_method?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_authenticated?: boolean | null
+          payer_pip: string
+          requester_account_id: string
+          status?: string
+          token_symbol: string
+        }
+        Update: {
+          amount?: number
+          authentication_method?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_authenticated?: boolean | null
+          payer_pip?: string
+          requester_account_id?: string
+          status?: string
+          token_symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_requests_advanced_requester_account_id_fkey"
+            columns: ["requester_account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           approved_tokens: string[] | null
@@ -648,6 +1173,62 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programmable_locks: {
+        Row: {
+          account_id: string
+          amount: number
+          arbiter_pip: string | null
+          conditions: Json | null
+          created_at: string | null
+          expires_at: string | null
+          hash_condition: string | null
+          id: string
+          lock_type: string
+          recipient_pip: string
+          status: string
+          time_lock: string | null
+          token_symbol: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          arbiter_pip?: string | null
+          conditions?: Json | null
+          created_at?: string | null
+          expires_at?: string | null
+          hash_condition?: string | null
+          id?: string
+          lock_type: string
+          recipient_pip: string
+          status?: string
+          time_lock?: string | null
+          token_symbol: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          arbiter_pip?: string | null
+          conditions?: Json | null
+          created_at?: string | null
+          expires_at?: string | null
+          hash_condition?: string | null
+          id?: string
+          lock_type?: string
+          recipient_pip?: string
+          status?: string
+          time_lock?: string | null
+          token_symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programmable_locks_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -765,6 +1346,86 @@ export type Database = {
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_payment_recipients: {
+        Row: {
+          amount: number
+          id: string
+          recipient_pip: string
+          split_payment_id: string
+          status: string
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          id?: string
+          recipient_pip: string
+          split_payment_id: string
+          status?: string
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          id?: string
+          recipient_pip?: string
+          split_payment_id?: string
+          status?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_payment_recipients_split_payment_id_fkey"
+            columns: ["split_payment_id"]
+            isOneToOne: false
+            referencedRelation: "split_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "split_payment_recipients_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_payments: {
+        Row: {
+          conditions: Json | null
+          created_at: string | null
+          id: string
+          initiator_account_id: string
+          status: string
+          token_symbol: string
+          total_amount: number
+        }
+        Insert: {
+          conditions?: Json | null
+          created_at?: string | null
+          id?: string
+          initiator_account_id: string
+          status?: string
+          token_symbol: string
+          total_amount: number
+        }
+        Update: {
+          conditions?: Json | null
+          created_at?: string | null
+          id?: string
+          initiator_account_id?: string
+          status?: string
+          token_symbol?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_payments_initiator_account_id_fkey"
+            columns: ["initiator_account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -890,6 +1551,63 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      trade_finance_escrows: {
+        Row: {
+          arbiter_pip: string | null
+          buyer_account_id: string
+          created_at: string | null
+          documents_required: string[] | null
+          escrow_amount: number
+          id: string
+          released_at: string | null
+          seller_account_id: string
+          status: string
+          token_symbol: string
+          trade_terms: Json
+        }
+        Insert: {
+          arbiter_pip?: string | null
+          buyer_account_id: string
+          created_at?: string | null
+          documents_required?: string[] | null
+          escrow_amount: number
+          id?: string
+          released_at?: string | null
+          seller_account_id: string
+          status?: string
+          token_symbol: string
+          trade_terms: Json
+        }
+        Update: {
+          arbiter_pip?: string | null
+          buyer_account_id?: string
+          created_at?: string | null
+          documents_required?: string[] | null
+          escrow_amount?: number
+          id?: string
+          released_at?: string | null
+          seller_account_id?: string
+          status?: string
+          token_symbol?: string
+          trade_terms?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_finance_escrows_buyer_account_id_fkey"
+            columns: ["buyer_account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trade_finance_escrows_seller_account_id_fkey"
+            columns: ["seller_account_id"]
+            isOneToOne: false
+            referencedRelation: "cbdc_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transaction_fees: {
         Row: {
