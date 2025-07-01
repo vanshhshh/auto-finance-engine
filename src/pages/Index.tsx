@@ -27,7 +27,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import ModernNavbar from '@/components/ModernNavbar';
+import { ModernNavbar } from '@/components/ModernNavbar';
 import Footer from '@/components/Footer';
 
 const Index = () => {

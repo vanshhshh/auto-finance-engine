@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletData } from '@/hooks/useWalletData';
-import ModernNavbar from '@/components/ModernNavbar';
+import { ModernNavbar } from '@/components/ModernNavbar';
 import Footer from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
 

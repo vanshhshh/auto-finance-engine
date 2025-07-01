@@ -21,7 +21,7 @@ import {
   ChevronRight,
   MoreVertical
 } from 'lucide-react';
-import ModernNavbar from '@/components/ModernNavbar';
+import { ModernNavbar } from '@/components/ModernNavbar';
 import Footer from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
 
