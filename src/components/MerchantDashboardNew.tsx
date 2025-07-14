@@ -9,6 +9,8 @@ import { ConditionalTriggerManager } from './ConditionalTriggerManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBankingMethods } from '@/hooks/useBankingMethods';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Store, 
   CreditCard, 
@@ -19,12 +21,58 @@ import {
   Activity,
   Settings,
   Lock,
-  Zap
+  Zap,
+  LogOut,
+  AlertTriangle
 } from 'lucide-react';
 
 export const MerchantDashboardNew = () => {
-  const { user } = useAuth();
-  const { data: bankingMethods = [] } = useBankingMethods();
+  const { user, signOut } = useAuth();
+  const { data: bankingMethods = [], isLoading: bankingLoading, error: bankingError } = useBankingMethods();
+  const { toast } = useToast();
+
+  // Check if user is authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-yellow-500" />
+            <CardTitle>Authentication Required</CardTitle>
+            <CardDescription>
+              Please sign in to access the merchant dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button 
+              onClick={() => window.location.href = '/auth'}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Sign In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+        className: "bg-green-600 text-white border-green-700",
+      });
+      window.location.href = '/auth';
+    } catch (error) {
+      toast({
+        title: "Sign Out Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Mock merchant stats - in real app, these would come from API
   const merchantStats = [
@@ -60,11 +108,27 @@ export const MerchantDashboardNew = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Merchant Dashboard</h1>
-        <p className="text-gray-600">
-          Manage your business CBDC operations and customer payments
-        </p>
+      {/* Header with Sign Out */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Merchant Dashboard</h1>
+          <p className="text-gray-600">
+            Manage your business CBDC operations and customer payments
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+            Merchant Access
+          </Badge>
+          <Button
+            onClick={handleSignOut}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </Button>
+        </div>
       </div>
 
       {/* Merchant Stats */}
@@ -129,21 +193,27 @@ export const MerchantDashboardNew = () => {
                 <div className="space-y-6">
                   <div>
                     <h4 className="font-medium mb-3">Available Banking Methods</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {bankingMethods.slice(0, 6).map((method) => (
-                        <div key={method.id} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-sm">{method.method_name}</p>
-                              <p className="text-xs text-gray-600">{method.provider_name}</p>
+                    {bankingLoading ? (
+                      <div className="text-sm text-gray-500">Loading banking methods...</div>
+                    ) : bankingError ? (
+                      <div className="text-sm text-red-500">Failed to load banking methods</div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {bankingMethods.slice(0, 6).map((method) => (
+                          <div key={method.id} className="p-3 border rounded-lg bg-white">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm">{method.method_name}</p>
+                                <p className="text-xs text-gray-600">{method.provider_name}</p>
+                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                {method.method_type}
+                              </Badge>
                             </div>
-                            <Badge variant="outline" className="text-xs">
-                              {method.method_type}
-                            </Badge>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -159,7 +229,7 @@ export const MerchantDashboardNew = () => {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium">+${(Math.random() * 200 + 50).toFixed(2)}</p>
-                            <Badge variant="default" className="text-xs">completed</Badge>
+                            <Badge variant="default" className="text-xs bg-green-600">completed</Badge>
                           </div>
                         </div>
                       ))}
@@ -191,7 +261,7 @@ export const MerchantDashboardNew = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h4 className="font-medium">Quick Payment QR</h4>
-                  <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                  <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center bg-white">
                     <QrCode className="w-24 h-24 mx-auto mb-4 text-gray-400" />
                     <p className="text-sm text-gray-600">Generate QR code for instant payments</p>
                   </div>

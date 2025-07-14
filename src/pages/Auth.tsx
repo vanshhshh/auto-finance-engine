@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,29 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, signIn } = useAuth();
+  const { signUp, signIn, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -51,7 +68,7 @@ const Auth = () => {
         } else {
           toast({
             title: "Authentication Error",
-            description: error.message,
+            description: error.message || "An error occurred during authentication.",
             variant: "destructive",
           });
         }
@@ -71,10 +88,10 @@ const Auth = () => {
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: error?.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -109,6 +126,7 @@ const Auth = () => {
                 placeholder="your@email.com"
                 className="bg-white border-gray-300 text-gray-900"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -123,6 +141,7 @@ const Auth = () => {
                 className="bg-white border-gray-300 text-gray-900"
                 required
                 minLength={6}
+                disabled={loading}
               />
               {!isLogin && (
                 <p className="text-xs text-gray-600 mt-1">
@@ -144,6 +163,7 @@ const Auth = () => {
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
                 className="text-blue-600 hover:text-blue-700 text-sm"
+                disabled={loading}
               >
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
