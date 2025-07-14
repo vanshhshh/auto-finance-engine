@@ -2,7 +2,7 @@
 import React from 'react';
 import { MerchantDashboardNew } from '@/components/MerchantDashboardNew';
 import { useAuth } from '@/contexts/AuthContext';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 const MerchantPage = () => {
   const { user, loading } = useAuth();
