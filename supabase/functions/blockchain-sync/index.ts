@@ -271,9 +271,57 @@ async function createTransactionRecord(supabase: any, event: BlockchainEvent) {
 }
 
 async function updateRuleRecord(supabase: any, event: BlockchainEvent) {
-  // Rule-related updates would be implemented here
-  // For now, we'll just log the event
-  console.log('Rule event:', event);
+  const { type, ruleId, userAddress, txHash } = event;
+  
+  if (!ruleId) return;
+
+  // Get user ID from wallet address
+  const getUserId = async (walletAddress: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('wallet_address', walletAddress)
+      .single();
+    return data?.user_id;
+  };
+
+  if (type === 'rule_created' && userAddress) {
+    const userId = await getUserId(userAddress);
+    if (userId) {
+      // Update rule with blockchain confirmation
+      await supabase
+        .from('programmable_rules')
+        .update({
+          blockchain_rule_id: ruleId,
+          tx_hash: txHash,
+          status: 'deployed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+    }
+  }
+
+  if (type === 'rule_executed' && ruleId) {
+    // Log rule execution
+    await supabase
+      .from('rule_executions')
+      .insert({
+        rule_id: ruleId,
+        executed_at: new Date().toISOString(),
+        success: true,
+        transaction_id: txHash
+      });
+
+    // Update rule last executed timestamp
+    await supabase
+      .from('programmable_rules')
+      .update({
+        last_executed: new Date().toISOString(),
+        execution_count: supabase.rpc('increment_execution_count', { rule_id: ruleId })
+      })
+      .eq('blockchain_rule_id', ruleId);
+  }
 }
 
 async function createAuditLog(supabase: any, event: BlockchainEvent) {
