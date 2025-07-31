@@ -1495,6 +1495,39 @@ export type Database = {
         }
         Relationships: []
       }
+      system_status: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_check: string | null
+          last_error: string | null
+          metrics: Json | null
+          service_name: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_check?: string | null
+          last_error?: string | null
+          metrics?: Json | null
+          service_name: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_check?: string | null
+          last_error?: string | null
+          metrics?: Json | null
+          service_name?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ticket_messages: {
         Row: {
           created_at: string | null
