@@ -246,19 +246,21 @@ export const useCreateAutomatedRule = () => {
       }
 
       // Create rule in conditional_triggers table using correct schema
+      const triggerData = {
+        account_id: accounts[0].id,
+        trigger_type: 'fx_rate' as const,
+        action_type: ruleData.actions[0]?.type || 'notify',
+        conditions: ruleData.conditions as any, // Cast to Json type
+        action_config: { 
+          name: ruleData.name,
+          actions: ruleData.actions 
+        } as any, // Cast to Json type
+        status: 'active'
+      };
+
       const { data: rule, error: dbError } = await supabase
         .from('conditional_triggers')
-        .insert({
-          account_id: accounts[0].id,
-          trigger_type: 'fx_rate', // Using valid enum value
-          action_type: ruleData.actions[0]?.type || 'notify',
-          conditions: ruleData.conditions,
-          action_config: { 
-            name: ruleData.name,
-            actions: ruleData.actions 
-          },
-          status: 'active'
-        })
+        .insert(triggerData)
         .select()
         .single();
 
@@ -267,14 +269,18 @@ export const useCreateAutomatedRule = () => {
       // Use blockchain service to deploy rule (simplified for now)
       try {
         const blockchainService = await import('@/lib/blockchain');
-        const blockchainResult = await blockchainService.blockchainService.createRule({
-          userId: user.id,
-          ruleType: 'fx_rate',
+        const blockchainRuleData = {
+          ruleType: 'fx_rate' as const,
           conditions: JSON.stringify(ruleData.conditions),
-          actionType: ruleData.actions[0]?.type || 'notify',
-          actionData: JSON.stringify(ruleData.actions)
-        });
+          action: (ruleData.actions[0]?.type === 'transfer' || 
+                   ruleData.actions[0]?.type === 'mint' || 
+                   ruleData.actions[0]?.type === 'burn') 
+                   ? ruleData.actions[0].type as 'transfer' | 'mint' | 'burn'
+                   : 'transfer',
+          actionConfig: JSON.stringify(ruleData.actions)
+        };
 
+        const blockchainResult = await blockchainService.blockchainService.createRule(blockchainRuleData);
         console.log('Blockchain rule deployment result:', blockchainResult);
       } catch (blockchainError) {
         console.warn('Blockchain deployment failed, rule will run in database-only mode:', blockchainError);
