@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, CheckCircle, Clock, Zap, Activity, Database, Globe, Cpu } from 'lucide-react';
 import { useBlockchain, useBlockchainBalance, useBlockchainRules } from '@/hooks/useBlockchain';
-import { useRuleAutomation, useAutomationStatus, useSystemStatus } from '@/hooks/useRuleAutomation';
+import { useRuleAutomation, useAutomationStatus, useSystemStatus, useOracleData } from '@/hooks/useRuleAutomation';
 import { useToast } from '@/hooks/use-toast';
 
 export const BlockchainDashboard = () => {
@@ -393,7 +393,7 @@ const OracleDataDisplay = () => {
   const [weatherData, setWeatherData] = useState<any>(null);
   const [gpsData, setGpsData] = useState<any>(null);
   
-  const { fetchFxRates, fetchWeatherData, fetchGpsData } = require('@/hooks/useRuleAutomation').useOracleData();
+  const { fetchFxRates, fetchWeatherData, fetchGpsData } = useOracleData();
 
   const loadOracleData = async () => {
     try {
