@@ -1,17 +1,17 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { WalletDashboard } from "@/components/WalletDashboard";
+import WalletDashboard from "@/components/WalletDashboard";
 import { BlockchainDashboard } from "@/components/BlockchainDashboard";
 import { BlockchainActions } from "@/components/BlockchainActions";
 import { AdminDashboardNew } from "@/components/AdminDashboardNew";
 import { MerchantDashboardNew } from "@/components/MerchantDashboardNew";
-import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import { AutomationAnalytics } from "@/components/AutomationAnalytics";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
-  const { session } = useAuthContext();
+  const { session } = useAuth();
 
   if (!session) {
     return (
