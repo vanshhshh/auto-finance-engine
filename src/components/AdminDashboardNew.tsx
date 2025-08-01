@@ -115,10 +115,12 @@ export const AdminDashboardNew = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">CBDC Admin Dashboard</h1>
-        <p className="text-gray-600">
-          Comprehensive management for Central Bank Digital Currency infrastructure
+      <div className="text-center">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          Gate Finance Admin Dashboard
+        </h1>
+        <p className="text-slate-600 mt-2">
+          Comprehensive management for Digital Currency infrastructure
         </p>
         {hasErrors && (
           <div className="mt-2 flex items-center gap-2 text-amber-600">
@@ -129,18 +131,18 @@ export const AdminDashboardNew = () => {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
+          <div key={index} className="stats-card p-6 group hover:scale-105 transition-transform duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <stat.icon className="h-8 w-8 text-blue-600 group-hover:text-purple-600 transition-colors duration-300" />
+              <div className="text-right">
+                <div className="text-2xl font-bold text-slate-800">{stat.value}</div>
+                <p className="text-xs text-slate-600">{stat.description}</p>
+              </div>
+            </div>
+            <h3 className="text-sm font-medium text-slate-700">{stat.title}</h3>
+          </div>
         ))}
       </div>
 

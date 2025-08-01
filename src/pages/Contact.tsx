@@ -85,7 +85,7 @@ const Contact = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 mb-2">General inquiries:</p>
-                <p className="font-medium">support@gatefinance.com</p>
+                <p className="font-medium">gate.cbdc@gmail.com</p>
                 <p className="text-gray-600 mb-2 mt-4">Business partnerships:</p>
                 <p className="font-medium">partnerships@gatefinance.com</p>
               </CardContent>
@@ -100,9 +100,9 @@ const Contact = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 mb-2">24/7 Customer Support:</p>
-                <p className="font-medium">+1 (555) 123-4567</p>
+                <p className="font-medium">+91 9773553703</p>
                 <p className="text-gray-600 mb-2 mt-4">Enterprise Sales:</p>
-                <p className="font-medium">+1 (555) 765-4321</p>
+                <p className="font-medium">+91 9773553703</p>
               </CardContent>
             </Card>
 

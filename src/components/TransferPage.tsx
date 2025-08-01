@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Send, ArrowDownLeft, QrCode, Users } from 'lucide-react';
+import { Send, ArrowDownLeft, QrCode, Users, Zap } from 'lucide-react';
 import { useWalletData } from '@/hooks/useWalletData';
+import { InstantTransfer } from './InstantTransfer';
 
 const TransferPage = () => {
-  const [transferType, setTransferType] = useState<'send' | 'receive' | 'bulk'>('send');
+  const [transferType, setTransferType] = useState<'instant' | 'send' | 'receive' | 'bulk'>('instant');
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
   const [currency, setCurrency] = useState('eINR');
@@ -29,7 +30,20 @@ const TransferPage = () => {
   return (
     <div className="space-y-6">
       {/* Transfer Type Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Button
+          onClick={() => setTransferType('instant')}
+          variant={transferType === 'instant' ? 'default' : 'outline'}
+          className={`p-6 h-auto flex-col ${
+            transferType === 'instant' 
+              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow-lg' 
+              : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50'
+          }`}
+        >
+          <Zap className="mb-2" size={24} />
+          <span>Instant Transfer</span>
+        </Button>
+        
         <Button
           onClick={() => setTransferType('send')}
           variant={transferType === 'send' ? 'default' : 'outline'}
@@ -79,10 +93,13 @@ const TransferPage = () => {
       </div>
 
       {/* Transfer Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="capitalize">{transferType} Transfer</CardTitle>
-        </CardHeader>
+      {transferType === 'instant' ? (
+        <InstantTransfer />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="capitalize">{transferType} Transfer</CardTitle>
+          </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -158,6 +175,7 @@ const TransferPage = () => {
           </Button>
         </CardContent>
       </Card>
+      )}
 
       {/* Recent Recipients */}
       <Card>
