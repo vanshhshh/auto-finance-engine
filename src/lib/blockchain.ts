@@ -76,9 +76,9 @@ export class BlockchainService {
 
   // Kaleido/FireFly configuration
   private fireflyConfig = {
-    baseUrl: process.env.REACT_APP_FIREFLY_URL || 'https://your-firefly-instance.com',
-    namespace: process.env.REACT_APP_FIREFLY_NAMESPACE || 'default',
-    apiKey: process.env.REACT_APP_FIREFLY_API_KEY || ''
+    baseUrl: import.meta.env.VITE_FIREFLY_URL || 'https://your-firefly-instance.com',
+    namespace: import.meta.env.VITE_FIREFLY_NAMESPACE || 'default',
+    apiKey: import.meta.env.VITE_FIREFLY_API_KEY || ''
   };
 
   constructor() {
@@ -89,16 +89,16 @@ export class BlockchainService {
     try {
       // For development - use local provider or testnet
       this.provider = new ethers.JsonRpcProvider(
-        process.env.REACT_APP_RPC_URL || 'http://localhost:8545'
+        import.meta.env.VITE_RPC_URL || 'http://localhost:8545'
       );
       
       // Initialize contract addresses (these would be set after deployment)
       this.contracts = {
-        eINR: process.env.REACT_APP_EINR_CONTRACT || '',
-        eUSD: process.env.REACT_APP_EUSD_CONTRACT || '',
-        eAED: process.env.REACT_APP_EAED_CONTRACT || '',
-        ruleEngine: process.env.REACT_APP_RULE_ENGINE_CONTRACT || '',
-        cbdcWallet: process.env.REACT_APP_CBDC_WALLET_CONTRACT || ''
+        eINR: import.meta.env.VITE_EINR_CONTRACT || '',
+        eUSD: import.meta.env.VITE_EUSD_CONTRACT || '',
+        eAED: import.meta.env.VITE_EAED_CONTRACT || '',
+        ruleEngine: import.meta.env.VITE_RULE_ENGINE_CONTRACT || '',
+        cbdcWallet: import.meta.env.VITE_CBDC_WALLET_CONTRACT || ''
       };
     } catch (error) {
       console.error('Failed to initialize blockchain provider:', error);
