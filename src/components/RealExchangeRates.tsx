@@ -22,52 +22,27 @@ const RealExchangeRates = () => {
   const fetchRealRates = async () => {
     setLoading(true);
     try {
-      // Using a real exchange rate API (example with exchangerate-api.com)
-      const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+      // Using our Supabase edge function with real API
+      const response = await fetch('https://xgzlmfbwtfazmobddwgn.supabase.co/functions/v1/exchange-rates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
       const data = await response.json();
       
-      if (data && data.rates) {
-        const exchangeRates: ExchangeRate[] = [
-          {
-            pair: 'USD/INR',
-            rate: data.rates.INR || 83.12,
-            change24h: Math.random() * 2 - 1, // Simulated 24h change
-            timestamp: new Date().toISOString()
-          },
-          {
-            pair: 'USD/AED',
-            rate: data.rates.AED || 3.67,
-            change24h: Math.random() * 2 - 1,
-            timestamp: new Date().toISOString()
-          },
-          {
-            pair: 'EUR/USD',
-            rate: data.rates.EUR ? 1 / data.rates.EUR : 1.09,
-            change24h: Math.random() * 2 - 1,
-            timestamp: new Date().toISOString()
-          },
-          {
-            pair: 'GBP/USD',
-            rate: data.rates.GBP ? 1 / data.rates.GBP : 1.27,
-            change24h: Math.random() * 2 - 1,
-            timestamp: new Date().toISOString()
-          },
-          {
-            pair: 'INR/AED',
-            rate: data.rates.AED && data.rates.INR ? data.rates.AED / data.rates.INR : 0.044,
-            change24h: Math.random() * 2 - 1,
-            timestamp: new Date().toISOString()
-          }
-        ];
-        
-        setRates(exchangeRates);
+      if (data.success && data.rates) {
+        setRates(data.rates);
         setLastUpdate(new Date());
         
         toast({
           title: "Rates Updated",
-          description: "Exchange rates have been refreshed with live data.",
+          description: "Exchange rates refreshed with live market data.",
           className: "bg-green-600 text-white border-green-700",
         });
+      } else {
+        throw new Error(data.error || 'Failed to fetch rates');
       }
     } catch (error) {
       console.error('Error fetching exchange rates:', error);
