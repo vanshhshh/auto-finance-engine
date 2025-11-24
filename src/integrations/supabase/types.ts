@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -149,7 +149,7 @@ export type Database = {
           esip_id: string | null
           id: string
           idempotency_key: string | null
-          ip_address: unknown | null
+          ip_address: unknown
           jws_signature: string | null
           method: string
           pip_id: string | null
@@ -165,7 +165,7 @@ export type Database = {
           esip_id?: string | null
           id?: string
           idempotency_key?: string | null
-          ip_address?: unknown | null
+          ip_address?: unknown
           jws_signature?: string | null
           method: string
           pip_id?: string | null
@@ -181,7 +181,7 @@ export type Database = {
           esip_id?: string | null
           id?: string
           idempotency_key?: string | null
-          ip_address?: unknown | null
+          ip_address?: unknown
           jws_signature?: string | null
           method?: string
           pip_id?: string | null
@@ -264,7 +264,7 @@ export type Database = {
           created_at: string
           details: Json | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string | null
         }
@@ -273,7 +273,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -282,7 +282,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -1816,7 +1816,7 @@ export type Database = {
           device_id: string | null
           expires_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           session_token: string
           user_agent: string | null
           user_id: string
@@ -1827,7 +1827,7 @@ export type Database = {
           device_id?: string | null
           expires_at: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           session_token: string
           user_agent?: string | null
           user_id: string
@@ -1838,7 +1838,7 @@ export type Database = {
           device_id?: string | null
           expires_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           session_token?: string
           user_agent?: string | null
           user_id?: string
@@ -1932,9 +1932,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
+      admin_update_user_role: {
+        Args: { new_role: string; target_user_id: string }
+        Returns: boolean
+      }
+      check_role_update: {
+        Args: { new_role: string; old_role: string; user_uuid: string }
+        Returns: boolean
+      }
+      get_current_user_role: { Args: never; Returns: string }
+      process_instant_transfer: {
+        Args: {
+          amount: number
+          recipient_address: string
+          sender_id: string
+          token_symbol: string
+        }
         Returns: string
+      }
+      validate_password_strength: {
+        Args: { password: string }
+        Returns: boolean
       }
     }
     Enums: {
