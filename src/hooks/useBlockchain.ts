@@ -11,20 +11,45 @@ export const useBlockchain = () => {
 
   const connectWallet = useCallback(async () => {
     try {
+      console.log('🚀 Attempting to connect MetaMask...');
       const address = await blockchainService.connectWallet();
       setWalletAddress(address);
       setIsConnected(true);
+      
       toast({
-        title: "Wallet Connected",
-        description: `Connected to ${address.slice(0, 6)}...${address.slice(-4)}`,
+        title: "✅ Wallet Connected",
+        description: `Successfully connected to ${address.slice(0, 6)}...${address.slice(-4)}`,
+        className: "bg-green-600 text-white border-green-700",
       });
+      
+      console.log('✅ Wallet connected successfully:', address);
       return address;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ Wallet connection error:', error);
+      
+      // Provide specific error messages
+      let errorTitle = "Connection Failed";
+      let errorMessage = "Failed to connect wallet";
+      
+      if (error.message?.includes('MetaMask is not installed')) {
+        errorTitle = "MetaMask Not Found";
+        errorMessage = "Please install MetaMask extension from metamask.io to continue.";
+      } else if (error.message?.includes('rejected')) {
+        errorTitle = "Connection Rejected";
+        errorMessage = "You rejected the connection request. Please try again and approve in MetaMask.";
+      } else if (error.message?.includes('pending')) {
+        errorTitle = "Request Pending";
+        errorMessage = "Please check MetaMask and approve the pending connection request.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Failed to connect wallet",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
+      
       throw error;
     }
   }, [toast]);
