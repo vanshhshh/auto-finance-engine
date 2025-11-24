@@ -106,18 +106,46 @@ export class BlockchainService {
   }
 
   async connectWallet() {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        this.signer = await provider.getSigner();
-        return await this.signer.getAddress();
-      } catch (error) {
-        console.error('Failed to connect wallet:', error);
-        throw error;
-      }
+    if (typeof window === 'undefined') {
+      throw new Error('Window is not available');
     }
-    throw new Error('MetaMask not found');
+
+    if (!window.ethereum) {
+      throw new Error('MetaMask is not installed. Please install MetaMask extension to continue.');
+    }
+
+    try {
+      console.log('🦊 Requesting MetaMask connection...');
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      
+      // Request account access
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_requestAccounts' 
+      });
+      
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found. Please unlock MetaMask.');
+      }
+
+      console.log('✅ MetaMask connected:', accounts[0]);
+      this.signer = await provider.getSigner();
+      const address = await this.signer.getAddress();
+      
+      return address;
+    } catch (error: any) {
+      console.error('❌ Failed to connect wallet:', error);
+      
+      // Handle specific MetaMask errors
+      if (error.code === 4001) {
+        throw new Error('Connection rejected. Please approve the connection in MetaMask.');
+      } else if (error.code === -32002) {
+        throw new Error('Connection request pending. Please check MetaMask.');
+      } else if (error.message?.includes('Already processing')) {
+        throw new Error('MetaMask is already processing a request. Please check your extension.');
+      }
+      
+      throw new Error(error.message || 'Failed to connect to MetaMask');
+    }
   }
 
   private getTokenContract(tokenSymbol: 'eINR' | 'eUSD' | 'eAED') {
